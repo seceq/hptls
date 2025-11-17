@@ -93,13 +93,14 @@ hptls/
 │   │           └── client_key_exchange.rs
 │   └── Cargo.toml
 │
-├── hptls-crypto/               # Crypto abstraction layer (10 files)
+├── hptls-crypto/               # Crypto abstraction layer (11 files)
 │   ├── src/
 │   │   ├── lib.rs             # Trait definitions and exports
 │   │   ├── error.rs           # Crypto error types
 │   │   ├── aead.rs            # AEAD cipher traits
 │   │   ├── hash.rs            # Hash function traits
 │   │   ├── hmac.rs            # HMAC traits
+│   │   ├── hpke.rs            # HPKE (RFC 9180) traits for ECH
 │   │   ├── kdf.rs             # Key derivation function traits
 │   │   ├── random.rs          # RNG traits
 │   │   ├── signature.rs       # Digital signature traits
@@ -107,7 +108,7 @@ hptls/
 │   │   └── header_protection.rs  # Record header protection
 │   └── Cargo.toml
 │
-├── hptls-crypto-hpcrypt/       # FIPS crypto implementation (22 files)
+├── hptls-crypto-hpcrypt/       # FIPS crypto implementation (23 files)
 │   ├── src/
 │   │   ├── lib.rs             # Crypto provider implementation
 │   │   ├── fips_root.rs       # FIPS module initialization
@@ -115,6 +116,7 @@ hptls/
 │   │   ├── hash.rs            # SHA-256, SHA-384, SHA-512
 │   │   ├── hmac.rs            # HMAC implementations
 │   │   ├── hkdf.rs            # HKDF key derivation
+│   │   ├── hpke_impl.rs       # HPKE implementation via hpcrypt-hpke
 │   │   ├── random.rs          # Secure RNG
 │   │   ├── kex.rs             # ECDH (X25519, P-256, P-384)
 │   │   ├── signature.rs       # ECDSA, RSA-PSS, Ed25519
@@ -250,7 +252,7 @@ HPTLS uses a pluggable crypto provider architecture:
 - ✅ Pre-Shared Key (PSK)
 - ✅ Early Data (0-RTT)
 - ✅ Session Tickets
-- 🔄 Encrypted Client Hello (ECH) - Partial
+- ✅ Encrypted Client Hello (ECH) - Core cryptography complete
 - ✅ GREASE (RFC 8701)
 
 ## Quick Start
@@ -459,6 +461,7 @@ RUST_LOG=debug cargo test
 ## Documentation
 
 - **API Documentation**: Run `cargo doc --open`
+- **ECH Implementation Guide**: See [ECH_IMPLEMENTATION.md](ECH_IMPLEMENTATION.md)
 - **Examples**: See `examples/` directory
 - **Architecture**: See parent repository's `docs/` directory
 

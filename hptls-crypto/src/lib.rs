@@ -59,6 +59,7 @@ pub mod error;
 pub mod hash;
 pub mod header_protection;
 pub mod hmac;
+pub mod hpke;
 pub mod kdf;
 pub mod key_exchange;
 pub mod random;
@@ -69,6 +70,7 @@ pub use error::{Error, Result};
 pub use hash::{Hash, HashAlgorithm};
 pub use header_protection::{HeaderProtection, HeaderProtectionAlgorithm};
 pub use hmac::Hmac;
+pub use hpke::{Hpke, HpkeAead, HpkeCipherSuite, HpkeContext, HpkeKdf, HpkeKem};
 pub use kdf::{Kdf, KdfAlgorithm};
 pub use key_exchange::{KeyExchange, KeyExchangeAlgorithm};
 pub use random::Random;
@@ -189,6 +191,38 @@ pub trait CryptoProvider: Send + Sync + 'static {
         algorithm: HeaderProtectionAlgorithm,
         key: &[u8],
     ) -> Result<Box<dyn HeaderProtection>>;
+
+    /// Get an HPKE (Hybrid Public Key Encryption) instance.
+    ///
+    /// HPKE is used for Encrypted Client Hello (ECH) and other privacy features
+    /// that require authenticated encryption for the first message in a protocol.
+    ///
+    /// # Arguments
+    ///
+    /// * `cipher_suite` - The HPKE cipher suite (KEM + KDF + AEAD combination)
+    ///
+    /// # Returns
+    ///
+    /// An HPKE instance, or an error if the cipher suite is not supported.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use hptls_crypto::{CryptoProvider, HpkeCipherSuite};
+    ///
+    /// let provider = YourCryptoProvider::new();
+    /// let hpke = provider.hpke(HpkeCipherSuite::ech_default_p256())?;
+    ///
+    /// // Generate keypair for recipient
+    /// let (sk, pk) = hpke.generate_keypair()?;
+    ///
+    /// // Encrypt a message
+    /// let enc_and_ct = hpke.seal_base(&pk, b"info", b"aad", b"plaintext")?;
+    ///
+    /// // Decrypt the message
+    /// let plaintext = hpke.open_base(&enc_and_ct, &sk, b"info", b"aad")?;
+    /// ```
+    fn hpke(&self, cipher_suite: HpkeCipherSuite) -> Result<Box<dyn Hpke>>;
 
     /// Check if the provider supports a specific AEAD algorithm.
     ///

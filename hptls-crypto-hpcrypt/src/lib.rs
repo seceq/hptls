@@ -53,8 +53,8 @@
 
 use hptls_crypto::{
     Aead, AeadAlgorithm, CryptoProvider, HardwareFeatures, Hash, HashAlgorithm,
-    HeaderProtection, HeaderProtectionAlgorithm, Hmac, Kdf, KdfAlgorithm, KeyExchange,
-    KeyExchangeAlgorithm, Random, Result, Signature, SignatureAlgorithm,
+    HeaderProtection, HeaderProtectionAlgorithm, Hpke, HpkeCipherSuite, Hmac, Kdf, KdfAlgorithm,
+    KeyExchange, KeyExchangeAlgorithm, Random, Result, Signature, SignatureAlgorithm,
 };
 
 pub mod aead;
@@ -65,6 +65,7 @@ pub mod hash;
 pub mod header_protection;
 pub mod hkdf;
 pub mod hmac;
+pub mod hpke_impl;
 pub mod kex;
 pub mod random;
 mod rsa_bridge;
@@ -151,6 +152,10 @@ impl CryptoProvider for HpcryptProvider {
         key: &[u8],
     ) -> Result<Box<dyn HeaderProtection>> {
         header_protection::create_header_protection(algorithm, key)
+    }
+
+    fn hpke(&self, cipher_suite: HpkeCipherSuite) -> Result<Box<dyn Hpke>> {
+        hpke_impl::create_hpke(cipher_suite)
     }
 
     fn hardware_features(&self) -> HardwareFeatures {

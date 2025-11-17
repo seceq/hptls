@@ -35,6 +35,18 @@ pub enum TypedExtension {
 
     /// Early data indication (0-RTT) - empty in ClientHello
     EarlyData,
+
+    /// Encrypted Client Hello (ECH)
+    EncryptedClientHello {
+        /// ECH cipher suite (KDF + AEAD)
+        cipher_suite: crate::ech::EchCipherSuite,
+        /// Config ID (8 bytes)
+        config_id: [u8; 8],
+        /// Encapsulated key from HPKE
+        enc: Vec<u8>,
+        /// Encrypted ClientHelloInner payload
+        payload: Vec<u8>,
+    },
 }
 
 /// Key share entry (group + key_exchange data).
@@ -237,6 +249,31 @@ impl TypedExtension {
             TypedExtension::EarlyData => {
                 // RFC 8446: early_data extension is empty in ClientHello
                 (ExtensionType::EarlyData, Vec::new())
+            },
+
+            TypedExtension::EncryptedClientHello {
+                cipher_suite,
+                config_id,
+                enc,
+                payload,
+            } => {
+                let mut buf = BytesMut::new();
+
+                // Cipher suite (4 bytes: KDF ID + AEAD ID)
+                buf.put_slice(&cipher_suite.encode());
+
+                // Config ID (8 bytes)
+                buf.put_slice(config_id);
+
+                // Enc length (2 bytes) + enc data
+                buf.put_u16(enc.len() as u16);
+                buf.put_slice(enc);
+
+                // Payload length (2 bytes) + payload data
+                buf.put_u16(payload.len() as u16);
+                buf.put_slice(payload);
+
+                (ExtensionType::EncryptedClientHello, buf.to_vec())
             },
         };
 
@@ -502,6 +539,46 @@ impl TypedExtension {
                 Ok(TypedExtension::EarlyData)
             },
 
+            ExtensionType::EncryptedClientHello => {
+                // Minimum: 4 (cipher_suite) + 8 (config_id) + 2 (enc_len) + 2 (payload_len) = 16
+                if data.len() < 16 {
+                    return Err(Error::InvalidMessage("ECH extension too short".into()));
+                }
+
+                // Decode cipher suite (4 bytes)
+                let cipher_suite = crate::ech::EchCipherSuite::decode(&data[0..4])?;
+
+                // Config ID (8 bytes)
+                let mut config_id = [0u8; 8];
+                config_id.copy_from_slice(&data[4..12]);
+
+                // Enc length and data
+                let enc_len = u16::from_be_bytes([data[12], data[13]]) as usize;
+                if data.len() < 14 + enc_len {
+                    return Err(Error::InvalidMessage("ECH enc data truncated".into()));
+                }
+                let enc = data[14..14 + enc_len].to_vec();
+
+                // Payload length and data
+                let payload_offset = 14 + enc_len;
+                if data.len() < payload_offset + 2 {
+                    return Err(Error::InvalidMessage("ECH payload length missing".into()));
+                }
+                let payload_len =
+                    u16::from_be_bytes([data[payload_offset], data[payload_offset + 1]]) as usize;
+                if data.len() < payload_offset + 2 + payload_len {
+                    return Err(Error::InvalidMessage("ECH payload truncated".into()));
+                }
+                let payload = data[payload_offset + 2..payload_offset + 2 + payload_len].to_vec();
+
+                Ok(TypedExtension::EncryptedClientHello {
+                    cipher_suite,
+                    config_id,
+                    enc,
+                    payload,
+                })
+            },
+
             _ => Err(Error::UnsupportedFeature(format!(
                 "Extension type {:?} not yet supported",
                 extension.extension_type
@@ -581,6 +658,58 @@ impl crate::extensions::Extensions {
     /// Check if early_data extension is present.
     pub fn has_early_data(&self) -> bool {
         self.has(ExtensionType::EarlyData)
+    }
+
+    /// Add ECH (Encrypted Client Hello) extension.
+    ///
+    /// # Arguments
+    ///
+    /// * `cipher_suite` - ECH cipher suite used for encryption
+    /// * `config_id` - ECH configuration identifier (8 bytes)
+    /// * `enc` - HPKE encapsulated key
+    /// * `payload` - Encrypted ClientHelloInner
+    pub fn add_ech(
+        &mut self,
+        cipher_suite: crate::ech::EchCipherSuite,
+        config_id: [u8; 8],
+        enc: Vec<u8>,
+        payload: Vec<u8>,
+    ) -> Result<()> {
+        self.add_typed(TypedExtension::EncryptedClientHello {
+            cipher_suite,
+            config_id,
+            enc,
+            payload,
+        })
+    }
+
+    /// Get the ECH extension if present.
+    pub fn get_ech(
+        &self,
+    ) -> Result<
+        Option<(
+            crate::ech::EchCipherSuite,
+            [u8; 8],
+            Vec<u8>,
+            Vec<u8>,
+        )>,
+    > {
+        if let Some(TypedExtension::EncryptedClientHello {
+            cipher_suite,
+            config_id,
+            enc,
+            payload,
+        }) = self.get_typed(ExtensionType::EncryptedClientHello)?
+        {
+            Ok(Some((cipher_suite, config_id, enc, payload)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Check if ECH extension is present.
+    pub fn has_ech(&self) -> bool {
+        self.has(ExtensionType::EncryptedClientHello)
     }
 }
 

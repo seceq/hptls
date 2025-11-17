@@ -69,6 +69,7 @@ pub mod cipher;
 pub mod dtls;
 pub mod early_data;
 pub mod ech;
+pub mod ech_helpers;
 pub mod error;
 pub mod extension_types;
 pub mod extensions;
