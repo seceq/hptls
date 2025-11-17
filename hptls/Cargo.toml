@@ -1,0 +1,65 @@
+[package]
+name = "hptls"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "High-Performance TLS library for Rust"
+
+[dependencies]
+# Internal dependencies
+hptls-core = { workspace = true }
+hptls-crypto = { workspace = true }
+
+# Essential dependencies
+bytes = { workspace = true }
+thiserror = { workspace = true }
+zeroize = { workspace = true }
+tracing = { workspace = true }
+
+# Async support (optional)
+tokio = { workspace = true, optional = true }
+async-trait = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros", "rt"] }
+tracing-subscriber = { workspace = true }
+
+# Example dependencies
+ctrlc = "3.4"
+chrono = "0.4"
+
+[[example]]
+name = "https_client"
+path = "../examples/https_client.rs"
+
+[[example]]
+name = "https_server"
+path = "../examples/https_server.rs"
+
+[features]
+default = ["std", "tls13"]
+std = ["hptls-core/std"]
+async = ["tokio", "async-trait", "hptls-core/async"]
+
+# Protocol support
+tls12 = ["hptls-core/tls12"]
+tls13 = ["hptls-core/tls13"]
+dtls12 = ["hptls-core/dtls12"]
+dtls13 = ["hptls-core/dtls13"]
+quic = ["hptls-core/quic"]
+
+# Performance features
+simd = ["hptls-core/simd"]
+kTLS = ["hptls-core/kTLS"]
+io-uring = ["hptls-core/io-uring"]
+
+# Security features
+post-quantum = ["hptls-core/post-quantum"]
+ech = ["hptls-core/ech"]
