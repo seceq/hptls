@@ -1,0 +1,29 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+/coverage/
+cobertura.xml
+*.profraw
+*.profdata
+
+# Documentation
+/doc/
+/docs/
+
+# Benchmarks
+/criterion/
+
+# OS
+Thumbs.db
