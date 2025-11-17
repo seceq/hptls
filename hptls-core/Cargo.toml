@@ -1,0 +1,57 @@
+[package]
+name = "hptls-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Core TLS protocol implementation for HPTLS"
+
+[dependencies]
+# Internal dependencies
+hptls-crypto = { workspace = true }
+
+# Cryptography dependencies
+hpcrypt-kdf = { workspace = true }
+
+# Essential dependencies
+bytes = { workspace = true }
+thiserror = { workspace = true }
+zeroize = { workspace = true }
+subtle = { workspace = true }
+tracing = { workspace = true }
+rand = { workspace = true }
+
+# Async support (optional)
+tokio = { workspace = true, optional = true }
+async-trait = { workspace = true, optional = true }
+
+[dev-dependencies]
+hptls-crypto-hpcrypt = { path = "../hptls-crypto-hpcrypt" }
+tokio = { workspace = true, features = ["test-util", "macros", "rt"] }
+criterion = { workspace = true }
+sha2 = "0.10"
+
+[features]
+default = ["std"]
+std = []
+async = ["tokio", "async-trait"]
+tls12 = []
+tls13 = []
+dtls12 = []
+dtls13 = []
+quic = []
+
+# Performance features
+simd = []
+kTLS = []
+io-uring = []
+
+# Security features
+post-quantum = []
+ech = []
