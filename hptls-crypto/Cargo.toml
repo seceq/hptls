@@ -1,0 +1,25 @@
+[package]
+name = "hptls-crypto"
+version = "0.1.0"
+edition = "2021"
+authors = ["HPTLS Contributors"]
+license = "MIT OR Apache-2.0"
+description = "Cryptographic provider interface for HPTLS"
+repository = "https://github.com/yourusername/hptls"
+readme = "README.md"
+
+[dependencies]
+# Core dependencies for crypto interface
+zeroize = { version = "1.7", features = ["derive"] }
+subtle = "2.5"
+
+# Optional: Features for different crypto backends
+[features]
+default = []
+
+# Your custom crypto library (to be implemented)
+native = []
+
+[dev-dependencies]
+hex = "0.4"
+criterion = "0.5"
