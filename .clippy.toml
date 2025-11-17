@@ -1,0 +1,20 @@
+# Clippy configuration for HPTLS
+
+# Cognitive complexity threshold
+cognitive-complexity-threshold = 30
+
+# Maximum number of lines for a function
+too-many-lines-threshold = 150
+
+# Maximum number of arguments for a function
+too-many-arguments-threshold = 8
+
+# Minimum rust version (MSRV)
+msrv = "1.75"
+
+# Don't warn about these
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+
+# Warn on these specific lints
+# (configured in code via #![warn(...)])
