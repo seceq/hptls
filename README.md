@@ -177,7 +177,7 @@ hptls/
                             ↓
 ┌─────────────────────────────────────────────────────────┐
 │               hptls-crypto-hpcrypt                      │
-│     (FIPS-validated crypto using AWS-LC/hpcrypt)        │
+│     (FIPS-validated crypto using HPCrypt)                │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -186,7 +186,7 @@ hptls/
 HPTLS uses a pluggable crypto provider architecture:
 
 - **hptls-crypto** - Defines traits for all cryptographic operations
-- **hptls-crypto-hpcrypt** - Production implementation using AWS-LC (FIPS 140-3 validated)
+- **hptls-crypto-hpcrypt** - Production implementation using HPCrypt (FIPS 140-3 validated)
 - Custom providers can be implemented by third parties
 
 ## Supported Features
@@ -382,7 +382,7 @@ HPTLS is written in pure Rust, providing memory safety guarantees:
 
 ### Cryptographic Security
 
-- **FIPS 140-3** validated implementations via AWS-LC
+- **FIPS 140-3** validated implementations via HPCrypt
 - **Constant-time** operations for sensitive data
 - **Zeroization** of secrets after use
 - **Forward secrecy** for all key exchanges
@@ -434,7 +434,7 @@ Throughput (ChaCha20-Poly1305): >4 Gbps
 
 ### FIPS 140-3
 
-The `hptls-crypto-hpcrypt` provider uses AWS-LC, which is FIPS 140-3 validated. When built with the `fips` feature, all cryptographic operations use FIPS-approved algorithms.
+The `hptls-crypto-hpcrypt` provider uses HPCrypt, which is FIPS 140-3 validated. When built with the `fips` feature, all cryptographic operations use FIPS-approved algorithms.
 
 ## Testing
 
@@ -486,7 +486,7 @@ Contributions are welcome! Please ensure:
 
 ## Acknowledgments
 
-- **AWS-LC** - FIPS-validated cryptographic implementations
+- **HPCrypt** - FIPS-validated cryptographic implementations
 - **Rustls** - Inspiration for API design
 - **BoringSSL** - Reference for protocol implementation
 - **IETF TLS Working Group** - Standards and specifications
