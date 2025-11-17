@@ -1,0 +1,50 @@
+[package]
+name = "hptls-crypto-hpcrypt"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+license = "MIT OR Apache-2.0"
+description = "hpcrypt-based cryptography provider for HPTLS"
+repository = "https://github.com/yourusername/hptls"
+
+[dependencies]
+# Internal dependency - crypto trait definitions
+hptls-crypto = { path = "../hptls-crypto", version = "0.1.0" }
+
+# External hpcrypt dependencies - using workspace dependencies
+hpcrypt-aead = { workspace = true }
+hpcrypt-hash = { workspace = true }
+hpcrypt-mac = { workspace = true }
+hpcrypt-kdf = { workspace = true, features = ["quic-header-protection"] }
+hpcrypt-curves = { workspace = true }
+hpcrypt-signatures = { workspace = true }
+hpcrypt-rsa = { workspace = true }
+hpcrypt-rng = { workspace = true }
+hpcrypt-core = { workspace = true }
+
+# Post-Quantum Cryptography
+hpcrypt-mlkem = { workspace = true }
+hpcrypt-mldsa = { workspace = true }
+hpcrypt-slhdsa = { workspace = true }
+
+# Utilities
+zeroize = { version = "1.7", features = ["derive"] }
+num-bigint = "0.4"
+hex = "0.4"
+rand = "0.8"
+
+# For hybrid PQC algorithms (classical + PQC)
+x25519-dalek = "2.0"
+p256 = { version = "0.13", features = ["ecdh"] }
+
+[dev-dependencies]
+num-traits = "0.2"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[features]
+default = ["std"]
+std = []
+
+[[bench]]
+name = "rsa_pss_bench"
+harness = false
