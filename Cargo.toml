@@ -1,0 +1,97 @@
+[workspace]
+resolver = "2"
+members = [
+    "hptls",
+    "hptls-core",
+    "hptls-crypto",
+    "hptls-crypto-hpcrypt",
+    "benchmarks",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+authors = ["HPTLS Contributors"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/yourusername/hptls"
+homepage = "https://github.com/yourusername/hptls"
+documentation = "https://docs.rs/hptls"
+keywords = ["tls", "ssl", "cryptography", "security", "quic"]
+categories = ["cryptography", "network-programming", "asynchronous"]
+
+[workspace.dependencies]
+# Internal crates
+hptls-core = { version = "0.1.0", path = "hptls-core" }
+hptls-crypto = { version = "0.1.0", path = "hptls-crypto" }
+
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+async-trait = "0.1"
+
+# Cryptography (will be replaced with custom provider)
+zeroize = { version = "1.7", features = ["derive"] }
+subtle = "2.5"
+rand = "0.8"
+
+# hpcrypt dependencies - from official seceq/hpcrypt repository
+hpcrypt-core = { path = "../hpcrypt-seceq/hpcrypt-core", version = "0.1" }
+hpcrypt-aead = { path = "../hpcrypt-seceq/hpcrypt-aead", version = "0.1" }
+hpcrypt-hash = { path = "../hpcrypt-seceq/hpcrypt-hash", version = "0.1" }
+hpcrypt-mac = { path = "../hpcrypt-seceq/hpcrypt-mac", version = "0.1" }
+hpcrypt-kdf = { path = "../hpcrypt-seceq/hpcrypt-kdf", version = "0.1" }
+hpcrypt-curves = { path = "../hpcrypt-seceq/hpcrypt-curves", version = "0.1" }
+hpcrypt-signatures = { path = "../hpcrypt-seceq/hpcrypt-signatures", version = "0.1" }
+hpcrypt-rsa = { path = "../hpcrypt-seceq/hpcrypt-rsa", version = "0.1" }
+hpcrypt-rng = { path = "../hpcrypt-seceq/hpcrypt-rng", version = "0.1" }
+hpcrypt-mlkem = { path = "../hpcrypt-seceq/hpcrypt-mlkem", version = "0.1" }
+hpcrypt-mldsa = { path = "../hpcrypt-seceq/hpcrypt-mldsa", version = "0.1" }
+hpcrypt-slhdsa = { path = "../hpcrypt-seceq/hpcrypt-slhdsa", version = "0.1" }
+
+# Serialization
+bytes = "1.5"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Testing
+criterion = "0.5"
+proptest = "1.4"
+
+# Platform-specific
+[workspace.dependencies.libc]
+version = "0.2"
+
+[workspace.dependencies.windows-sys]
+version = "0.52"
+features = [
+    "Win32_Foundation",
+    "Win32_Networking_WinSock",
+    "Win32_Security",
+    "Win32_Security_Cryptography",
+    "Win32_System_IO",
+]
+
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[profile.bench]
+inherits = "release"
+strip = false
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.test]
+opt-level = 1
