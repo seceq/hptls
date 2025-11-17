@@ -1,0 +1,25 @@
+[package]
+name = "benchmarks"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+description = "Benchmarks for HPTLS"
+
+[dependencies]
+hptls = { path = "../hptls" }
+hptls-core = { workspace = true }
+hptls-crypto = { workspace = true }
+hptls-crypto-hpcrypt = { path = "../hptls-crypto-hpcrypt" }
+criterion = { workspace = true }
+tokio = { workspace = true }
+
+[[bench]]
+name = "handshake"
+harness = false
+
+[[bench]]
+name = "throughput"
+harness = false
