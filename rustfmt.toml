@@ -1,0 +1,60 @@
+# Rustfmt configuration for HPTLS
+
+# Edition
+edition = "2021"
+
+# Maximum line width
+max_width = 100
+
+# Ideal line width
+# Wrap comments at this column
+comment_width = 100
+wrap_comments = true
+
+# Indentation
+tab_spaces = 4
+hard_tabs = false
+
+# Imports
+imports_granularity = "Crate"
+group_imports = "StdExternalCrate"
+reorder_imports = true
+
+# Function definitions
+fn_single_line = false
+fn_args_layout = "Tall"
+
+# Structs and enums
+struct_field_align_threshold = 20
+enum_discrim_align_threshold = 20
+
+# Chains
+chain_width = 80
+
+# Control flow
+control_brace_style = "AlwaysSameLine"
+
+# Match
+match_arm_blocks = true
+match_block_trailing_comma = true
+
+# Misc
+use_small_heuristics = "Default"
+newline_style = "Unix"
+normalize_comments = true
+normalize_doc_attributes = true
+format_code_in_doc_comments = true
+format_strings = false
+format_macro_matchers = true
+format_macro_bodies = true
+
+# Trailing comma
+trailing_comma = "Vertical"
+trailing_semicolon = true
+
+# Blank lines
+blank_lines_lower_bound = 0
+blank_lines_upper_bound = 1
+
+# License header (optional - uncomment and customize)
+# license_template_path = "LICENSE-HEADER"
