@@ -505,7 +505,7 @@ impl Tls12ServerHandshake {
             .ok_or(Error::InternalError("No master secret".into()))?;
 
         // Compute expected verify_data
-        // Note: This is a placeholder. Full implementation would compute hash of all handshake messages.
+        // TODO: Compute hash of all handshake messages
         let handshake_hash = vec![0u8; 32]; // Placeholder
 
         let expected_verify_data = compute_verify_data(
@@ -550,7 +550,7 @@ impl Tls12ServerHandshake {
             .ok_or(Error::InternalError("No master secret".into()))?;
 
         // Compute handshake hash
-        // Note: This is a placeholder. Full implementation would compute hash of all handshake messages.
+        // TODO: Compute hash of all handshake messages
         let handshake_hash = vec![0u8; 32]; // Placeholder
 
         let verify_data = compute_verify_data(
