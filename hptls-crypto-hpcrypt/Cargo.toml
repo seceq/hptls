@@ -27,6 +27,9 @@ hpcrypt-mlkem = { workspace = true }
 hpcrypt-mldsa = { workspace = true }
 hpcrypt-slhdsa = { workspace = true }
 
+# HPKE for ECH (Encrypted Client Hello)
+hpcrypt-hpke = { workspace = true }
+
 # Utilities
 zeroize = { version = "1.7", features = ["derive"] }
 num-bigint = "0.4"
