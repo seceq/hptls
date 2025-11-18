@@ -13,30 +13,7 @@ pub fn create_kdf(algorithm: KdfAlgorithm) -> Result<Box<dyn Kdf>> {
     }
 }
 
-/// HKDF-SHA256 key derivation function implementation.
-///
-/// HMAC-based Key Derivation Function using SHA-256 as the underlying hash.
-/// - Hash function: SHA-256
-/// - PRK size: 32 bytes (256 bits)
-/// - Max output length: 8160 bytes (255 * 32)
-///
-/// # Algorithm
-///
-/// HKDF is a two-step key derivation function:
-/// 1. Extract: HKDF-Extract(salt, IKM) -> PRK (pseudorandom key)
-/// 2. Expand: HKDF-Expand(PRK, info, L) -> OKM (output keying material)
-///
-/// # Security
-///
-/// HKDF-SHA256 is cryptographically strong and suitable for deriving multiple keys
-/// from a single shared secret. It is mandatory for TLS 1.3 (RFC 8446) and provides
-/// forward secrecy when used with ephemeral key exchange.
-///
-/// # Standards
-///
-/// - RFC 5869: HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
-/// - RFC 8446: TLS 1.3 (mandatory KDF for all cipher suites)
-/// - NIST SP 800-56C: Recommendation for Key-Derivation Methods
+/// HKDF-SHA256 implementation.
 #[derive(Debug, Clone, Copy)]
 struct HkdfSha256Impl;
 
@@ -60,30 +37,7 @@ impl Kdf for HkdfSha256Impl {
     }
 }
 
-/// HKDF-SHA384 key derivation function implementation.
-///
-/// HMAC-based Key Derivation Function using SHA-384 as the underlying hash.
-/// - Hash function: SHA-384
-/// - PRK size: 48 bytes (384 bits)
-/// - Max output length: 12240 bytes (255 * 48)
-///
-/// # Algorithm
-///
-/// HKDF is a two-step key derivation function:
-/// 1. Extract: HKDF-Extract(salt, IKM) -> PRK (pseudorandom key)
-/// 2. Expand: HKDF-Expand(PRK, info, L) -> OKM (output keying material)
-///
-/// # Security
-///
-/// HKDF-SHA384 provides stronger security than HKDF-SHA256 and is recommended
-/// for high-security applications. Used in TLS 1.3 cipher suites with AES-256-GCM
-/// and stronger curve groups (P-384, P-521).
-///
-/// # Standards
-///
-/// - RFC 5869: HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
-/// - RFC 8446: TLS 1.3 (used with SHA-384 cipher suites)
-/// - NIST SP 800-56C: Recommendation for Key-Derivation Methods
+/// HKDF-SHA384 implementation.
 #[derive(Debug, Clone, Copy)]
 struct HkdfSha384Impl;
 
@@ -107,29 +61,7 @@ impl Kdf for HkdfSha384Impl {
     }
 }
 
-/// HKDF-SHA512 key derivation function implementation.
-///
-/// HMAC-based Key Derivation Function using SHA-512 as the underlying hash.
-/// - Hash function: SHA-512
-/// - PRK size: 64 bytes (512 bits)
-/// - Max output length: 16320 bytes (255 * 64)
-///
-/// # Algorithm
-///
-/// HKDF is a two-step key derivation function:
-/// 1. Extract: HKDF-Extract(salt, IKM) -> PRK (pseudorandom key)
-/// 2. Expand: HKDF-Expand(PRK, info, L) -> OKM (output keying material)
-///
-/// # Security
-///
-/// HKDF-SHA512 provides the highest security level among SHA-2 family and is
-/// suitable for applications requiring maximum cryptographic strength. Can be used
-/// in custom protocols or high-security TLS extensions.
-///
-/// # Standards
-///
-/// - RFC 5869: HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
-/// - NIST SP 800-56C: Recommendation for Key-Derivation Methods
+/// HKDF-SHA512 implementation.
 #[derive(Debug, Clone, Copy)]
 struct HkdfSha512Impl;
 
@@ -153,32 +85,7 @@ impl Kdf for HkdfSha512Impl {
     }
 }
 
-/// TLS 1.2 Pseudorandom Function (PRF) with SHA-256.
-///
-/// Legacy key derivation function used exclusively in TLS 1.2.
-/// - Hash function: SHA-256
-/// - Algorithm: P_SHA256 (HMAC-based expansion)
-/// - Output: Variable length (up to practical limits)
-///
-/// # Algorithm
-///
-/// The TLS 1.2 PRF uses P_hash defined as:
-/// ```text
-/// P_hash(secret, seed) = HMAC_hash(secret, A(1) + seed) +
-///                        HMAC_hash(secret, A(2) + seed) + ...
-/// where A(0) = seed, A(i) = HMAC_hash(secret, A(i-1))
-/// ```
-///
-/// # Security
-///
-/// The TLS 1.2 PRF is specific to TLS 1.2 and has been superseded by HKDF in TLS 1.3.
-/// It is still widely used for backward compatibility with TLS 1.2 connections.
-/// Note: TLS 1.3 uses HKDF instead for improved security properties.
-///
-/// # Standards
-///
-/// - RFC 5246: TLS 1.2 (Section 5: HMAC and the Pseudorandom Function)
-/// - RFC 2246: TLS 1.0 (original PRF definition)
+/// TLS 1.2 PRF with SHA-256 implementation using hpcrypt-kdf.
 #[derive(Debug, Clone, Copy)]
 struct TlsPrfSha256Impl;
 
@@ -201,32 +108,7 @@ impl Kdf for TlsPrfSha256Impl {
     }
 }
 
-/// TLS 1.2 Pseudorandom Function (PRF) with SHA-384.
-///
-/// Legacy key derivation function used exclusively in TLS 1.2 with SHA-384 cipher suites.
-/// - Hash function: SHA-384
-/// - Algorithm: P_SHA384 (HMAC-based expansion)
-/// - Output: Variable length (up to practical limits)
-///
-/// # Algorithm
-///
-/// The TLS 1.2 PRF uses P_hash defined as:
-/// ```text
-/// P_hash(secret, seed) = HMAC_hash(secret, A(1) + seed) +
-///                        HMAC_hash(secret, A(2) + seed) + ...
-/// where A(0) = seed, A(i) = HMAC_hash(secret, A(i-1))
-/// ```
-///
-/// # Security
-///
-/// The TLS 1.2 PRF with SHA-384 provides stronger security than the SHA-256 variant
-/// and is used with high-security TLS 1.2 cipher suites. TLS 1.3 supersedes this
-/// with HKDF-SHA384 for improved security properties.
-///
-/// # Standards
-///
-/// - RFC 5246: TLS 1.2 (Section 5: HMAC and the Pseudorandom Function)
-/// - Used with TLS 1.2 cipher suites that specify SHA-384
+/// TLS 1.2 PRF with SHA-384 implementation using hpcrypt-kdf.
 #[derive(Debug, Clone, Copy)]
 struct TlsPrfSha384Impl;
 
