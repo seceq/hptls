@@ -95,6 +95,7 @@ pub use hptls_crypto;
 // Public modules
 pub mod client;
 pub mod server;
+pub mod dtls;
 
 #[cfg(feature = "async")]
 pub mod stream;
