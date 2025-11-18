@@ -39,6 +39,12 @@ pub enum KeyExchangeAlgorithm {
     X25519MlKem768,
     /// P-256 + ML-KEM-768 (hybrid)
     Secp256r1MlKem768,
+    /// X448 + ML-KEM-1024 (hybrid, maximum security)
+    X448MlKem1024,
+    /// P-384 + ML-KEM-1024 (hybrid, NIST high security)
+    Secp384r1MlKem1024,
+    /// P-521 + ML-KEM-1024 (hybrid, maximum NIST security)
+    Secp521r1MlKem1024,
 }
 
 impl KeyExchangeAlgorithm {
@@ -58,6 +64,9 @@ impl KeyExchangeAlgorithm {
             KeyExchangeAlgorithm::MlKem1024 => 1568,
             KeyExchangeAlgorithm::X25519MlKem768 => 32 + 1184,
             KeyExchangeAlgorithm::Secp256r1MlKem768 => 65 + 1184,
+            KeyExchangeAlgorithm::X448MlKem1024 => 56 + 1568,       // 1624 bytes
+            KeyExchangeAlgorithm::Secp384r1MlKem1024 => 97 + 1568,  // 1665 bytes
+            KeyExchangeAlgorithm::Secp521r1MlKem1024 => 133 + 1568, // 1701 bytes
         }
     }
 
@@ -75,8 +84,11 @@ impl KeyExchangeAlgorithm {
             KeyExchangeAlgorithm::MlKem512 => 32,
             KeyExchangeAlgorithm::MlKem768 => 32,
             KeyExchangeAlgorithm::MlKem1024 => 32,
-            KeyExchangeAlgorithm::X25519MlKem768 => 64, // Concatenated
-            KeyExchangeAlgorithm::Secp256r1MlKem768 => 64,
+            KeyExchangeAlgorithm::X25519MlKem768 => 64, // 32 + 32 concatenated
+            KeyExchangeAlgorithm::Secp256r1MlKem768 => 64, // 32 + 32 concatenated
+            KeyExchangeAlgorithm::X448MlKem1024 => 88,     // 56 + 32 concatenated
+            KeyExchangeAlgorithm::Secp384r1MlKem1024 => 80, // 48 + 32 concatenated
+            KeyExchangeAlgorithm::Secp521r1MlKem1024 => 98, // 66 + 32 concatenated
         }
     }
 
@@ -96,6 +108,9 @@ impl KeyExchangeAlgorithm {
             KeyExchangeAlgorithm::MlKem1024 => 0x0202, // Placeholder
             KeyExchangeAlgorithm::X25519MlKem768 => 0x11EC, // IANA registered
             KeyExchangeAlgorithm::Secp256r1MlKem768 => 0x11EB, // IANA registered
+            KeyExchangeAlgorithm::X448MlKem1024 => 0x11ED, // Placeholder (not standardized yet)
+            KeyExchangeAlgorithm::Secp384r1MlKem1024 => 0x11EE, // Placeholder
+            KeyExchangeAlgorithm::Secp521r1MlKem1024 => 0x11EF, // Placeholder
         }
     }
 
@@ -120,6 +135,9 @@ impl KeyExchangeAlgorithm {
             0x0202 => Some(KeyExchangeAlgorithm::MlKem1024),
             0x11EC => Some(KeyExchangeAlgorithm::X25519MlKem768),
             0x11EB => Some(KeyExchangeAlgorithm::Secp256r1MlKem768),
+            0x11ED => Some(KeyExchangeAlgorithm::X448MlKem1024),
+            0x11EE => Some(KeyExchangeAlgorithm::Secp384r1MlKem1024),
+            0x11EF => Some(KeyExchangeAlgorithm::Secp521r1MlKem1024),
             _ => None,
         }
     }
@@ -140,6 +158,9 @@ impl KeyExchangeAlgorithm {
             KeyExchangeAlgorithm::MlKem1024 => "ML-KEM-1024",
             KeyExchangeAlgorithm::X25519MlKem768 => "X25519MLKEM768",
             KeyExchangeAlgorithm::Secp256r1MlKem768 => "SecP256r1MLKEM768",
+            KeyExchangeAlgorithm::X448MlKem1024 => "X448MLKEM1024",
+            KeyExchangeAlgorithm::Secp384r1MlKem1024 => "SecP384r1MLKEM1024",
+            KeyExchangeAlgorithm::Secp521r1MlKem1024 => "SecP521r1MLKEM1024",
         }
     }
 
@@ -152,6 +173,9 @@ impl KeyExchangeAlgorithm {
                 | KeyExchangeAlgorithm::MlKem1024
                 | KeyExchangeAlgorithm::X25519MlKem768
                 | KeyExchangeAlgorithm::Secp256r1MlKem768
+                | KeyExchangeAlgorithm::X448MlKem1024
+                | KeyExchangeAlgorithm::Secp384r1MlKem1024
+                | KeyExchangeAlgorithm::Secp521r1MlKem1024
         )
     }
 }
