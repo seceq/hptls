@@ -18,13 +18,14 @@
 //! - FIPS mode toggle
 //! - State management (Uninitialized → Operational → Error)
 //! - Error state enforcement (no recovery)
-//! - KAT implementations (in progress)
+//! - KAT implementations (to be completed)
 //! - Zeroization hooks (to be added)
 //!
 //! ## Usage
 //!
-//! ```rust,no_run
-//! use hptls_crypto_hpcrypt::fips::{FipsMode, run_power_on_self_tests};
+//! ```rust,ignore
+//! // Note: This module is currently internal. FIPS support will be exposed via public API later.
+//! use hptls_crypto_hpcrypt::fips_root::{FipsMode, run_power_on_self_tests};
 //!
 //! // Enable FIPS mode
 //! FipsMode::enable();
@@ -76,8 +77,8 @@ impl FipsMode {
     ///
     /// # Example
     ///
-    /// ```rust,no_run
-    /// use hptls_crypto_hpcrypt::fips::FipsMode;
+    /// ```rust,ignore
+    /// use hptls_crypto_hpcrypt::fips_root::FipsMode;
     ///
     /// FipsMode::enable();
     /// assert!(FipsMode::is_enabled());
@@ -135,8 +136,8 @@ impl FipsMode {
 ///
 /// # Example
 ///
-/// ```rust,no_run
-/// use hptls_crypto_hpcrypt::fips::run_power_on_self_tests;
+/// ```rust,ignore
+/// use hptls_crypto_hpcrypt::fips_root::run_power_on_self_tests;
 ///
 /// run_power_on_self_tests().expect("FIPS POST failed");
 /// ```
