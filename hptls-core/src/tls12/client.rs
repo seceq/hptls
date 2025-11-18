@@ -394,7 +394,7 @@ impl Tls12ClientHandshake {
                             // Could not extract public key - log but don't fail
                             // (certificate might be in a format we don't support yet)
                             #[cfg(test)]
-                            println!("⚠ Could not extract public key from certificate: {}", e);
+                            println!("Could not extract public key from certificate: {}", e);
                         }
                     }
                 }
