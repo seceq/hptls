@@ -11,16 +11,7 @@ pub fn create_hash(algorithm: HashAlgorithm) -> Result<Box<dyn Hash>> {
     }
 }
 
-/// SHA-256 cryptographic hash function implementation using hpcrypt.
-///
-/// Provides the SHA-256 hash algorithm as defined in FIPS 180-4.
-/// - Output size: 32 bytes (256 bits)
-/// - Block size: 64 bytes
-///
-/// # Security
-///
-/// SHA-256 is part of the SHA-2 family and is widely used in TLS for HMAC, HKDF,
-/// and transcript hashing. Uses hardware acceleration (SHA extensions) when available.
+/// SHA-256 hash implementation.
 struct Sha256Hash {
     hasher: hpcrypt_hash::Sha256,
 }
@@ -51,16 +42,7 @@ impl Hash for Sha256Hash {
     }
 }
 
-/// SHA-384 cryptographic hash function implementation using hpcrypt.
-///
-/// Provides the SHA-384 hash algorithm as defined in FIPS 180-4.
-/// - Output size: 48 bytes (384 bits)
-/// - Block size: 128 bytes
-///
-/// # Security
-///
-/// SHA-384 is a truncated version of SHA-512, providing higher security margins
-/// than SHA-256. Used in TLS cipher suites requiring stronger hash functions.
+/// SHA-384 hash implementation.
 struct Sha384Hash {
     hasher: hpcrypt_hash::Sha384,
 }
@@ -91,17 +73,7 @@ impl Hash for Sha384Hash {
     }
 }
 
-/// SHA-512 cryptographic hash function implementation using hpcrypt.
-///
-/// Provides the SHA-512 hash algorithm as defined in FIPS 180-4.
-/// - Output size: 64 bytes (512 bits)
-/// - Block size: 128 bytes
-///
-/// # Security
-///
-/// SHA-512 provides the highest security level of the SHA-2 family. While not
-/// commonly used in standard TLS cipher suites, it may be used in custom configurations
-/// or for signature algorithms.
+/// SHA-512 hash implementation.
 struct Sha512Hash {
     hasher: hpcrypt_hash::Sha512,
 }
