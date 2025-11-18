@@ -13,12 +13,12 @@
 //! ## Supported Algorithms
 //!
 //! ### Classical Cryptography
-//! - **AEAD**: AES-128-GCM, AES-256-GCM, ChaCha20-Poly1305
+//! - **AEAD**: AES-128-GCM, AES-256-GCM, AES-128-CCM, AES-128-CCM-8, ChaCha20-Poly1305
 //! - **Hash**: SHA-256, SHA-384, SHA-512
 //! - **HMAC**: With SHA-256, SHA-384, SHA-512
 //! - **KDF**: HKDF-Extract, HKDF-Expand
-//! - **Key Exchange**: X25519, ECDH P-256
-//! - **Signatures**: Ed25519, ECDSA P-256
+//! - **Key Exchange**: X25519, X448, ECDH P-256, P-384, P-521
+//! - **Signatures**: Ed25519, Ed448, ECDSA P-256, P-384, RSA-PSS
 //! - **RNG**: Cryptographically secure random number generation
 //!
 //! ### Post-Quantum Cryptography (FIPS 203-205)
@@ -42,7 +42,8 @@
 //! //     .build()?;
 //! ```
 
-// Note: We deny unsafe code throughout this crate (RSA bridge previously required unsafe but has been resolved)
+// NOTE: We allow unsafe code only for the RSA key bridge (rsa_bridge.rs)
+// TODO: Remove this once hpcrypt-rsa provides a public from_components constructor
 #![deny(unsafe_code)]
 #![warn(
     missing_docs,
@@ -53,7 +54,7 @@
 
 use hptls_crypto::{
     Aead, AeadAlgorithm, CryptoProvider, HardwareFeatures, Hash, HashAlgorithm,
-    HeaderProtection, HeaderProtectionAlgorithm, Hpke, HpkeCipherSuite, Hmac, Kdf, KdfAlgorithm,
+    HeaderProtection, HeaderProtectionAlgorithm, Hmac, Hpke, HpkeCipherSuite, Kdf, KdfAlgorithm,
     KeyExchange, KeyExchangeAlgorithm, Random, Result, Signature, SignatureAlgorithm,
 };
 
@@ -65,7 +66,7 @@ pub mod hash;
 pub mod header_protection;
 pub mod hkdf;
 pub mod hmac;
-pub mod hpke_impl;
+pub mod hpke_adapter;
 pub mod kex;
 pub mod random;
 mod rsa_bridge;
@@ -155,7 +156,7 @@ impl CryptoProvider for HpcryptProvider {
     }
 
     fn hpke(&self, cipher_suite: HpkeCipherSuite) -> Result<Box<dyn Hpke>> {
-        hpke_impl::create_hpke(cipher_suite)
+        hpke_adapter::create_hpke(cipher_suite)
     }
 
     fn hardware_features(&self) -> HardwareFeatures {
