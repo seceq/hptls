@@ -146,6 +146,10 @@ pub struct ClientHandshake {
     selected_algorithm: Option<KeyExchangeAlgorithm>,
     /// Cookie from HelloRetryRequest
     hrr_cookie: Option<Vec<u8>>,
+    /// ECH configuration (if ECH should be used)
+    ech_config: Option<crate::ech::EchConfig>,
+    /// ECH retry configurations (received from server if ECH failed)
+    ech_retry_configs: Option<Vec<crate::ech::EchConfig>>,
 }
 
 impl ClientHandshake {
@@ -175,6 +179,8 @@ impl ClientHandshake {
             client_shares: std::collections::HashMap::new(),
             selected_algorithm: None,
             hrr_cookie: None,
+            ech_config: None,
+            ech_retry_configs: None,
         }
     }
 
@@ -228,6 +234,36 @@ impl ClientHandshake {
         self.key_schedule
             .as_ref()
             .and_then(|ks| ks.get_server_application_traffic_secret())
+    }
+
+    /// Get mutable reference to the key schedule.
+    ///
+    /// Used for post-handshake operations like KeyUpdate that need to derive
+    /// new application traffic secrets.
+    ///
+    /// # Returns
+    /// `Some(&mut KeySchedule)` if handshake has progressed past ServerHello, `None` otherwise.
+    pub fn key_schedule_mut(&mut self) -> Option<&mut KeySchedule> {
+        self.key_schedule.as_mut()
+    }
+
+    /// Set the ECH configuration for this handshake.
+    ///
+    /// Must be called before `client_hello()` to enable ECH encryption.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The ECH configuration (typically obtained from DNS HTTPS records)
+    pub fn set_ech_config(&mut self, config: crate::ech::EchConfig) {
+        self.ech_config = Some(config);
+    }
+
+    /// Get ECH retry configurations if the server provided them.
+    ///
+    /// After a failed ECH attempt, the server may provide retry configurations
+    /// that the client should use for a new connection attempt.
+    pub fn get_ech_retry_configs(&self) -> Option<&[crate::ech::EchConfig]> {
+        self.ech_retry_configs.as_deref()
     }
 
     /// Manually update the transcript hash with raw handshake message bytes.
@@ -338,12 +374,14 @@ impl ClientHandshake {
     /// * `cipher_suites` - List of supported cipher suites (in preference order)
     /// * `server_name` - Optional server name for SNI extension
     /// * `alpn_protocols` - Optional list of ALPN protocols (e.g., ["h2", "http/1.1"])
+    /// * `override_legacy_version` - Optional override for legacy_version field (e.g., for DTLS)
     pub fn client_hello(
         &mut self,
         provider: &dyn CryptoProvider,
         cipher_suites: &[CipherSuite],
         server_name: Option<&str>,
         alpn_protocols: Option<&[&str]>,
+        override_legacy_version: Option<ProtocolVersion>,
     ) -> Result<ClientHello> {
         if self.state != ClientState::Start {
             return Err(Error::UnexpectedMessage(
@@ -415,14 +453,53 @@ impl ClientHandshake {
         }
 
         // Build ClientHello
-        let client_hello = ClientHello {
-            legacy_version: ProtocolVersion::Tls12, // Must be 0x0303 for TLS 1.3
+        let mut client_hello = ClientHello {
+            legacy_version: override_legacy_version.unwrap_or(ProtocolVersion::Tls12), // TLS 1.2 for TLS 1.3, or DTLS 1.2 for DTLS
             random: self.client_random,
             legacy_session_id: self.session_id.clone(),
             cipher_suites: cipher_suites.to_vec(),
             legacy_compression_methods: vec![0], // null compression
             extensions,
         };
+
+        // Apply ECH encryption if configured
+        if let Some(ref ech_config) = self.ech_config {
+            // Determine real and public server names
+            let real_sni = server_name.ok_or_else(|| {
+                Error::InvalidConfig("ECH requires a server name (SNI)".to_string())
+            })?;
+            let public_name = &ech_config.public_name;
+
+            // Split ClientHello into Inner (real SNI) and Outer (public name)
+            let split = crate::ech::ClientHelloSplit::create_for_ech(
+                real_sni,
+                public_name,
+                &client_hello,
+            )?;
+
+            // Encrypt ClientHelloInner
+            let client_hello_inner_bytes = split.inner.encode()?;
+            let cipher_suite = ech_config.cipher_suites.first().ok_or_else(|| {
+                Error::InvalidConfig("ECH config has no cipher suites".to_string())
+            })?;
+
+            let (enc, ciphertext) = crate::ech::encrypt_client_hello_inner(
+                ech_config,
+                cipher_suite,
+                &client_hello_inner_bytes,
+                provider,
+            )?;
+
+            // Use the Outer ClientHello and add ECH extension
+            client_hello = split.outer;
+            client_hello.extensions.add_ech(
+                *cipher_suite,
+                ech_config.config_id,
+                enc,
+                ciphertext,
+            )?;
+        }
+
         // Initialize transcript hash with first cipher suite's hash algorithm
         let hash_algorithm = cipher_suites[0].hash_algorithm();
         let mut transcript = TranscriptHash::new(hash_algorithm);
@@ -445,6 +522,7 @@ impl ClientHandshake {
     /// * `server_name` - Server name (SNI)
     /// * `alpn_protocols` - ALPN protocols
     /// * `ticket` - Stored ticket to offer
+    /// * `override_legacy_version` - Optional override for legacy_version field (e.g., for DTLS)
     /// # Returns
     /// ClientHello message with PSK extension
     /// Per RFC 8446, the PreSharedKey extension MUST be the last extension in ClientHello.
@@ -456,6 +534,7 @@ impl ClientHandshake {
         server_name: Option<&str>,
         alpn_protocols: Option<&[&str]>,
         ticket: &StoredTicket,
+        override_legacy_version: Option<ProtocolVersion>,
     ) -> Result<ClientHello> {
         // Verify ticket is still valid
         let current_time = std::time::SystemTime::now()
@@ -468,7 +547,7 @@ impl ClientHandshake {
 
         // First generate a regular ClientHello (without PSK)
         let mut client_hello =
-            self.client_hello(provider, cipher_suites, server_name, alpn_protocols)?;
+            self.client_hello(provider, cipher_suites, server_name, alpn_protocols, override_legacy_version)?;
 
         // Build extensions (WITHOUT PSK extension first)
         // PSK Key Exchange Modes (MUST be present when offering PSK)
@@ -592,7 +671,6 @@ impl ClientHandshake {
             // Server accepted PSK - use offered PSK for key derivation
             if let Some(ref psk) = self.offered_psk {
                 key_schedule.init_early_secret(provider, psk)?;
-                // Client using PSK for key derivation (server accepted PSK)
             } else {
                 // Server accepted PSK but we don't have one - protocol error
                 return Err(Error::ProtocolError(
@@ -658,6 +736,21 @@ impl ClientHandshake {
             // Early data extension not present means server rejected it
             if matches!(early_data.state, crate::early_data::EarlyDataState::Offered) {
                 early_data.reject()?;
+            }
+        }
+
+        // Handle ECH retry_configs (sent when ECH decryption failed)
+        if let Some(retry_configs_bytes) = encrypted_extensions.extensions.get_ech_retry_configs() {
+            // Decode ECHConfigList
+            match crate::ech::EchConfigList::decode(&retry_configs_bytes) {
+                Ok(config_list) => {
+                    // Store retry configs for application to use
+                    self.ech_retry_configs = Some(config_list.configs.clone());
+                    tracing::info!("Received {} ECH retry config(s) from server", config_list.configs.len());
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to decode ECH retry_configs: {:?}", e);
+                }
             }
         }
 
@@ -849,6 +942,7 @@ impl ClientHandshake {
             .as_mut()
             .ok_or_else(|| Error::InternalError("Transcript not initialized".into()))?
             .current_hash(provider)?;
+
         // Verify the signature
         crate::signature_verify::verify_certificate_verify_signature(
             provider,
