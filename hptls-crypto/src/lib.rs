@@ -194,34 +194,15 @@ pub trait CryptoProvider: Send + Sync + 'static {
 
     /// Get an HPKE (Hybrid Public Key Encryption) instance.
     ///
-    /// HPKE is used for Encrypted Client Hello (ECH) and other privacy features
-    /// that require authenticated encryption for the first message in a protocol.
+    /// HPKE is used for Encrypted Client Hello (ECH) and other privacy features.
     ///
     /// # Arguments
     ///
-    /// * `cipher_suite` - The HPKE cipher suite (KEM + KDF + AEAD combination)
+    /// * `cipher_suite` - The HPKE cipher suite to use
     ///
     /// # Returns
     ///
     /// An HPKE instance, or an error if the cipher suite is not supported.
-    ///
-    /// # Example
-    ///
-    /// ```rust,ignore
-    /// use hptls_crypto::{CryptoProvider, HpkeCipherSuite};
-    ///
-    /// let provider = YourCryptoProvider::new();
-    /// let hpke = provider.hpke(HpkeCipherSuite::ech_default_p256())?;
-    ///
-    /// // Generate keypair for recipient
-    /// let (sk, pk) = hpke.generate_keypair()?;
-    ///
-    /// // Encrypt a message
-    /// let enc_and_ct = hpke.seal_base(&pk, b"info", b"aad", b"plaintext")?;
-    ///
-    /// // Decrypt the message
-    /// let plaintext = hpke.open_base(&enc_and_ct, &sk, b"info", b"aad")?;
-    /// ```
     fn hpke(&self, cipher_suite: HpkeCipherSuite) -> Result<Box<dyn Hpke>>;
 
     /// Check if the provider supports a specific AEAD algorithm.
