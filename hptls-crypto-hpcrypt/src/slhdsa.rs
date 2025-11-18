@@ -17,6 +17,7 @@ use hptls_crypto::{
 use hpcrypt_slhdsa::{
     sign, verify, KeyPair, PublicKey, SecretKey,
     Sha2_128f, Sha2_192f, Sha2_256f,
+    Shake128f, Shake256f,
 };
 
 /// SLH-DSA-SHA2-128f signature algorithm (128-bit security, fast variant).
@@ -136,6 +137,87 @@ impl Signature for SlhDsaSha2_256f {
     }
 }
 
+/// SLH-DSA-SHAKE-128f signature algorithm (128-bit security, SHAKE-based, fast variant).
+///
+/// SHAKE-based variant using SHAKE256 extendable output function,
+/// offering alternative security assumptions compared to SHA2.
+#[derive(Debug, Clone, Copy)]
+pub struct SlhDsaShake128f;
+
+impl Signature for SlhDsaShake128f {
+    fn sign(&self, signing_key: &[u8], message: &[u8]) -> Result<Vec<u8>> {
+        let sk = SecretKey::<Shake128f>::from_bytes(signing_key)
+            .map_err(|_| Error::InvalidPrivateKey)?;
+
+        let signature = sign(&sk, message);
+        Ok(signature)
+    }
+
+    fn verify(&self, verifying_key: &[u8], message: &[u8], signature: &[u8]) -> Result<()> {
+        let pk = PublicKey::<Shake128f>::from_bytes(verifying_key)
+            .map_err(|_| Error::InvalidPublicKey)?;
+
+        if verify(&pk, message, signature) {
+            Ok(())
+        } else {
+            Err(Error::SignatureVerificationFailed)
+        }
+    }
+
+    fn generate_keypair(&self) -> Result<(SigningKey, VerifyingKey)> {
+        let keypair = KeyPair::<Shake128f>::generate();
+
+        Ok((
+            SigningKey::from_bytes(keypair.secret_key.to_bytes()),
+            VerifyingKey::from_bytes(keypair.public_key.to_bytes()),
+        ))
+    }
+
+    fn algorithm(&self) -> SignatureAlgorithm {
+        SignatureAlgorithm::SlhDsaShake128f
+    }
+}
+
+/// SLH-DSA-SHAKE-256f signature algorithm (256-bit security, SHAKE-based, fast variant).
+///
+/// Maximum security SHAKE-based variant using SHAKE256 extendable output function.
+#[derive(Debug, Clone, Copy)]
+pub struct SlhDsaShake256f;
+
+impl Signature for SlhDsaShake256f {
+    fn sign(&self, signing_key: &[u8], message: &[u8]) -> Result<Vec<u8>> {
+        let sk = SecretKey::<Shake256f>::from_bytes(signing_key)
+            .map_err(|_| Error::InvalidPrivateKey)?;
+
+        let signature = sign(&sk, message);
+        Ok(signature)
+    }
+
+    fn verify(&self, verifying_key: &[u8], message: &[u8], signature: &[u8]) -> Result<()> {
+        let pk = PublicKey::<Shake256f>::from_bytes(verifying_key)
+            .map_err(|_| Error::InvalidPublicKey)?;
+
+        if verify(&pk, message, signature) {
+            Ok(())
+        } else {
+            Err(Error::SignatureVerificationFailed)
+        }
+    }
+
+    fn generate_keypair(&self) -> Result<(SigningKey, VerifyingKey)> {
+        let keypair = KeyPair::<Shake256f>::generate();
+
+        Ok((
+            SigningKey::from_bytes(keypair.secret_key.to_bytes()),
+            VerifyingKey::from_bytes(keypair.public_key.to_bytes()),
+        ))
+    }
+
+    fn algorithm(&self) -> SignatureAlgorithm {
+        SignatureAlgorithm::SlhDsaShake256f
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -192,5 +274,27 @@ mod tests {
         let (sk256, _) = sig256.generate_keypair().unwrap();
         let sig256_bytes = sig256.sign(sk256.as_bytes(), b"test").unwrap();
         println!("SLH-DSA-SHA2-256f signature size: {} bytes", sig256_bytes.len());
+    }
+
+    #[test]
+    fn test_slhdsa_shake128f_sign_verify() {
+        let sig_algo = SlhDsaShake128f;
+        let (signing_key, verifying_key) = sig_algo.generate_keypair().unwrap();
+
+        let message = b"Testing SLH-DSA-SHAKE-128f";
+        let signature = sig_algo.sign(signing_key.as_bytes(), message).unwrap();
+
+        sig_algo.verify(verifying_key.as_bytes(), message, &signature).unwrap();
+    }
+
+    #[test]
+    fn test_slhdsa_shake256f_sign_verify() {
+        let sig_algo = SlhDsaShake256f;
+        let (signing_key, verifying_key) = sig_algo.generate_keypair().unwrap();
+
+        let message = b"Testing SLH-DSA-SHAKE-256f";
+        let signature = sig_algo.sign(signing_key.as_bytes(), message).unwrap();
+
+        sig_algo.verify(verifying_key.as_bytes(), message, &signature).unwrap();
     }
 }
