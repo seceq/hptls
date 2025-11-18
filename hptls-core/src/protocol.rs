@@ -109,6 +109,9 @@ pub enum ContentType {
 
     /// Heartbeat (24) - RFC 6520 (not used in TLS 1.3)
     Heartbeat = 24,
+
+    /// ACK (26) - DTLS 1.3 explicit acknowledgment (RFC 9147 Section 7)
+    Ack = 26,
 }
 
 impl ContentType {
@@ -121,6 +124,7 @@ impl ContentType {
             22 => Some(ContentType::Handshake),
             23 => Some(ContentType::ApplicationData),
             24 => Some(ContentType::Heartbeat),
+            26 => Some(ContentType::Ack),
             _ => None,
         }
     }
@@ -135,6 +139,19 @@ impl ContentType {
         matches!(
             self,
             ContentType::Alert | ContentType::Handshake | ContentType::ApplicationData
+        )
+    }
+
+    /// Check if this content type is valid for DTLS 1.3.
+    ///
+    /// DTLS 1.3 supports all TLS 1.3 content types plus ACK messages.
+    pub const fn is_valid_for_dtls13(self) -> bool {
+        matches!(
+            self,
+            ContentType::Alert
+                | ContentType::Handshake
+                | ContentType::ApplicationData
+                | ContentType::Ack
         )
     }
 }
@@ -305,7 +322,8 @@ pub enum ExtensionType {
     /// oid_filters (48) - TLS 1.3
     OidFilters = 48,
 
-    /// post_handshake_auth (49) - TLS 1.3
+    /// post_handshake_auth (49) - Post-handshake client authentication (RFC 8446 Section 4.2.6)
+    /// Empty extension indicating client supports certificate requests after handshake
     PostHandshakeAuth = 49,
 
     /// signature_algorithms_cert (50) - TLS 1.3
@@ -313,6 +331,10 @@ pub enum ExtensionType {
 
     /// key_share (51) - TLS 1.3
     KeyShare = 51,
+
+    /// connection_id (54) - DTLS 1.3 connection migration support (RFC 9146)
+    /// Enables endpoints to change IP address/port while maintaining connection state
+    ConnectionId = 54,
 
     /// encrypted_client_hello (0xFE0D) - ECH draft
     EncryptedClientHello = 0xFE0D,
@@ -351,6 +373,7 @@ impl ExtensionType {
             49 => Some(ExtensionType::PostHandshakeAuth),
             50 => Some(ExtensionType::SignatureAlgorithmsCert),
             51 => Some(ExtensionType::KeyShare),
+            54 => Some(ExtensionType::ConnectionId),
             0xFE0D => Some(ExtensionType::EncryptedClientHello),
             0xFF01 => Some(ExtensionType::RenegotiationInfo),
             _ => None,
