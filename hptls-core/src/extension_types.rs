@@ -47,6 +47,24 @@ pub enum TypedExtension {
         /// Encrypted ClientHelloInner payload
         payload: Vec<u8>,
     },
+
+    /// Cookie extension (RFC 8446 Section 4.2.2)
+    ///
+    /// Used in DTLS 1.3 for stateless DoS protection. The server sends a cookie
+    /// in HelloRetryRequest, and the client echoes it in the second ClientHello.
+    Cookie(Vec<u8>),
+
+    /// Connection ID extension (RFC 9146)
+    ///
+    /// Used in DTLS 1.3 for connection migration. Allows endpoints to change
+    /// IP address/port while maintaining the same DTLS connection.
+    ConnectionId(Vec<u8>),
+
+    /// Post-Handshake Authentication extension (RFC 8446 Section 4.2.6)
+    ///
+    /// Empty extension indicating client support for post-handshake authentication.
+    /// Server can request client certificate after handshake completion.
+    PostHandshakeAuth,
 }
 
 /// Key share entry (group + key_exchange data).
@@ -274,6 +292,31 @@ impl TypedExtension {
                 buf.put_slice(payload);
 
                 (ExtensionType::EncryptedClientHello, buf.to_vec())
+            },
+
+            TypedExtension::Cookie(cookie) => {
+                // Cookie extension: opaque cookie<1..2^16-1>
+                let mut buf = BytesMut::new();
+                buf.put_u16(cookie.len() as u16);
+                buf.put_slice(cookie);
+                (ExtensionType::Cookie, buf.to_vec())
+            },
+
+            TypedExtension::ConnectionId(cid) => {
+                // Connection ID extension (RFC 9146)
+                // Format: opaque cid<0..255>
+                // Used for connection migration in DTLS 1.3
+                let mut buf = BytesMut::new();
+                buf.put_u8(cid.len() as u8);
+                buf.put_slice(cid);
+                (ExtensionType::ConnectionId, buf.to_vec())
+            },
+
+            TypedExtension::PostHandshakeAuth => {
+                // Post-Handshake Authentication extension (RFC 8446 Section 4.2.6)
+                // Format: empty extension (0 bytes)
+                // Indicates client supports post-handshake certificate requests
+                (ExtensionType::PostHandshakeAuth, vec![])
             },
         };
 
@@ -579,6 +622,52 @@ impl TypedExtension {
                 })
             },
 
+            ExtensionType::Cookie => {
+                // Cookie extension: length (2 bytes) + cookie data
+                if data.len() < 2 {
+                    return Err(Error::InvalidMessage("Cookie extension too short".into()));
+                }
+                let cookie_len = u16::from_be_bytes([data[0], data[1]]) as usize;
+                if data.len() < 2 + cookie_len {
+                    return Err(Error::InvalidMessage("Cookie data truncated".into()));
+                }
+                if cookie_len == 0 {
+                    return Err(Error::InvalidMessage("Cookie cannot be empty".into()));
+                }
+                let cookie = data[2..2 + cookie_len].to_vec();
+                Ok(TypedExtension::Cookie(cookie))
+            },
+
+            ExtensionType::ConnectionId => {
+                // Connection ID extension (RFC 9146)
+                // Format: length (1 byte) + cid data (0..255 bytes)
+                // Validates: non-empty data, correct length, size within spec
+                if data.is_empty() {
+                    return Err(Error::InvalidMessage("ConnectionId extension too short".into()));
+                }
+                let cid_len = data[0] as usize;
+                if data.len() < 1 + cid_len {
+                    return Err(Error::InvalidMessage("ConnectionId data truncated".into()));
+                }
+                if cid_len > 255 {
+                    return Err(Error::InvalidMessage("ConnectionId too long".into()));
+                }
+                let cid = data[1..1 + cid_len].to_vec();
+                Ok(TypedExtension::ConnectionId(cid))
+            },
+
+            ExtensionType::PostHandshakeAuth => {
+                // Post-Handshake Authentication extension (RFC 8446 Section 4.2.6)
+                // Format: empty (0 bytes)
+                // RFC requires this extension to be empty when present
+                if !data.is_empty() {
+                    return Err(Error::InvalidMessage(
+                        "PostHandshakeAuth extension must be empty".into(),
+                    ));
+                }
+                Ok(TypedExtension::PostHandshakeAuth)
+            },
+
             _ => Err(Error::UnsupportedFeature(format!(
                 "Extension type {:?} not yet supported",
                 extension.extension_type
@@ -711,6 +800,54 @@ impl crate::extensions::Extensions {
     pub fn has_ech(&self) -> bool {
         self.has(ExtensionType::EncryptedClientHello)
     }
+
+    /// Add ECH retry_configs extension (server -> client in EncryptedExtensions).
+    ///
+    /// When ECH decryption fails, the server sends retry_configs to the client
+    /// containing updated ECH configurations that the client should use for retry.
+    ///
+    /// # Arguments
+    ///
+    /// * `retry_configs` - ECH config list encoded as wire format bytes
+    pub fn add_ech_retry_configs(&mut self, retry_configs: Vec<u8>) -> Result<()> {
+        let ext = Extension::new(ExtensionType::EncryptedClientHello, retry_configs);
+        self.add(ext);
+        Ok(())
+    }
+
+    /// Get ECH retry_configs if present (from server's EncryptedExtensions).
+    ///
+    /// Returns the raw retry_configs bytes which can be decoded as an ECHConfigList.
+    pub fn get_ech_retry_configs(&self) -> Option<Vec<u8>> {
+        self.get(ExtensionType::EncryptedClientHello)
+            .map(|ext| ext.data.clone())
+    }
+
+    /// Add a cookie extension.
+    ///
+    /// Used in DTLS 1.3 HelloRetryRequest and subsequent ClientHello for stateless
+    /// DoS protection.
+    ///
+    /// # Arguments
+    ///
+    /// * `cookie` - The cookie data (HMAC-based tag)
+    pub fn add_cookie(&mut self, cookie: Vec<u8>) -> Result<()> {
+        self.add_typed(TypedExtension::Cookie(cookie))
+    }
+
+    /// Get the cookie extension if present.
+    pub fn get_cookie(&self) -> Result<Option<Vec<u8>>> {
+        if let Some(TypedExtension::Cookie(cookie)) = self.get_typed(ExtensionType::Cookie)? {
+            Ok(Some(cookie))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Check if cookie extension is present.
+    pub fn has_cookie(&self) -> bool {
+        self.has(ExtensionType::Cookie)
+    }
 }
 
 #[cfg(test)]
@@ -743,5 +880,39 @@ mod tests {
         let ext = typed.encode().unwrap();
         let decoded = TypedExtension::decode(&ext).unwrap();
         assert_eq!(typed, decoded);
+    }
+
+    #[test]
+    fn test_cookie_encode_decode() {
+        // Test cookie extension
+        let cookie = vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08];
+        let typed = TypedExtension::Cookie(cookie.clone());
+        let ext = typed.encode().unwrap();
+        let decoded = TypedExtension::decode(&ext).unwrap();
+        assert_eq!(typed, decoded);
+
+        // Test with longer cookie (32 bytes, like HMAC-SHA256)
+        let long_cookie = vec![0xAB; 32];
+        let typed_long = TypedExtension::Cookie(long_cookie.clone());
+        let ext_long = typed_long.encode().unwrap();
+        let decoded_long = TypedExtension::decode(&ext_long).unwrap();
+        assert_eq!(typed_long, decoded_long);
+    }
+
+    #[test]
+    fn test_cookie_validation() {
+        use crate::extensions::Extension;
+
+        // Empty cookie should fail
+        let empty_data = vec![0x00, 0x00]; // length = 0
+        let ext = Extension::new(ExtensionType::Cookie, empty_data);
+        let result = TypedExtension::decode(&ext);
+        assert!(result.is_err());
+
+        // Truncated cookie should fail
+        let truncated_data = vec![0x00, 0x10]; // claims 16 bytes but no data
+        let ext_truncated = Extension::new(ExtensionType::Cookie, truncated_data);
+        let result_truncated = TypedExtension::decode(&ext_truncated);
+        assert!(result_truncated.is_err());
     }
 }
