@@ -98,15 +98,36 @@ pub fn verify_certificate_verify_signature(
     // Build the message that was signed
     let message = build_signature_message(transcript_hash, is_server);
 
+    // Debug logging
+    eprintln!("[DEBUG SIG] Signature algorithm: {:?}", algorithm);
+    eprintln!("[DEBUG SIG] Public key len: {}", public_key.len());
+    eprintln!(
+        "[DEBUG SIG] Public key (first 64 bytes): {:02x?}",
+        &public_key[..public_key.len().min(64)]
+    );
+    eprintln!("[DEBUG SIG] Signature len: {}", signature.len());
+    eprintln!("[DEBUG SIG] Signature: {:02x?}", signature);
+    eprintln!("[DEBUG SIG] Message len: {}", message.len());
+    eprintln!(
+        "[DEBUG SIG] Message (first 100 bytes): {:02x?}",
+        &message[..100.min(message.len())]
+    );
+    eprintln!("[DEBUG SIG] Transcript hash len: {}", transcript_hash.len());
+    eprintln!("[DEBUG SIG] Transcript hash: {:02x?}", transcript_hash);
+    eprintln!("[DEBUG SIG] Is server: {}", is_server);
+
     // Get signature instance from crypto provider
     let sig = provider
         .signature(algorithm)
         .map_err(|e| Error::CryptoError(format!("Failed to get signature handler: {}", e)))?;
 
     // Verify the signature
-    sig.verify(public_key, &message, signature)
-        .map_err(|e| Error::CertificateVerificationFailed(format!("Signature verification failed: {}", e)))?;
+    sig.verify(public_key, &message, signature).map_err(|e| {
+        eprintln!("[DEBUG SIG] Verification FAILED: {}", e);
+        Error::CertificateVerificationFailed(format!("Signature verification failed: {}", e))
+    })?;
 
+    eprintln!("[DEBUG SIG] Verification SUCCEEDED!");
     Ok(())
 }
 
