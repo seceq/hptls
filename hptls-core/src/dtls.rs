@@ -67,11 +67,14 @@ pub const REPLAY_WINDOW_SIZE: u64 = 64;
 pub struct Epoch(pub u16);
 
 impl Epoch {
-    /// Initial epoch (handshake)
+    /// Initial epoch (unencrypted)
     pub const INITIAL: Epoch = Epoch(0);
 
-    /// First application data epoch
-    pub const APPLICATION: Epoch = Epoch(1);
+    /// Handshake epoch (encrypted with handshake traffic keys)
+    pub const HANDSHAKE: Epoch = Epoch(1);
+
+    /// Application data epoch (encrypted with application traffic keys)
+    pub const APPLICATION: Epoch = Epoch(2);
 
     /// Increment epoch
     pub fn next(self) -> Result<Epoch> {
@@ -218,27 +221,43 @@ impl ReplayWindow {
         }
     }
 
-    /// Check if a sequence number should be accepted
+    /// Check if a sequence number should be accepted (anti-replay check)
     ///
-    /// Returns true if the packet is new (not a replay)
+    /// Implements RFC 9147 Section 4.5.1.1 anti-replay protection using
+    /// a sliding window algorithm.
+    ///
+    /// Returns true if the packet is new (not a replay) and should be accepted.
     pub fn check_and_update(&mut self, seq: u64) -> bool {
+        // Special case: first packet (right_edge == 0 and bitmap == 0)
+        if self.right_edge == 0 && self.bitmap == 0 {
+            self.right_edge = seq;
+            self.bitmap = 1;
+            return true;
+        }
+
         // Packet is to the right of window - accept and slide window
         if seq > self.right_edge {
             let diff = seq - self.right_edge;
             if diff < self.window_size {
-                // Shift bitmap left
+                // Shift bitmap left by diff positions
                 self.bitmap <<= diff;
                 // Mark previous right_edge as received
                 self.bitmap |= 1;
             } else {
-                // Gap is larger than window - reset
+                // Gap is larger than window - reset bitmap
                 self.bitmap = 1;
             }
             self.right_edge = seq;
             return true;
         }
 
-        // Packet is within window
+        // Exact duplicate of right edge
+        if seq == self.right_edge {
+            // Replay detected - right_edge is always marked as received
+            return false;
+        }
+
+        // Packet is within window (to the left of right_edge)
         let diff = self.right_edge - seq;
         if diff < self.window_size {
             // Check if already received
@@ -260,6 +279,34 @@ impl ReplayWindow {
     pub fn reset(&mut self) {
         self.right_edge = 0;
         self.bitmap = 0;
+    }
+
+    /// Get the current right edge of the window
+    pub fn right_edge(&self) -> u64 {
+        self.right_edge
+    }
+
+    /// Get the number of packets currently marked as received in the window
+    pub fn received_count(&self) -> u32 {
+        self.bitmap.count_ones()
+    }
+
+    /// Check if a specific sequence number is marked as received (without updating)
+    ///
+    /// This is useful for diagnostics and testing.
+    pub fn is_received(&self, seq: u64) -> bool {
+        if seq == self.right_edge {
+            return true;
+        }
+        if seq > self.right_edge {
+            return false;
+        }
+        let diff = self.right_edge - seq;
+        if diff >= self.window_size {
+            return false;
+        }
+        let mask = 1u64 << diff;
+        self.bitmap & mask != 0
     }
 }
 
@@ -320,7 +367,10 @@ impl RetransmitTimer {
         }
     }
 
-    /// Perform a retransmission (doubles timeout)
+    /// Perform a retransmission (doubles timeout with jitter)
+    ///
+    /// RFC 9147 Section 5.7 recommends using a timer based on RFC 6298
+    /// with exponential backoff and jitter to prevent synchronized retransmissions.
     pub fn retransmit(&mut self) -> Result<()> {
         if self.retransmit_count >= self.max_retransmits {
             return Err(Error::HandshakeFailure(
@@ -331,8 +381,24 @@ impl RetransmitTimer {
         self.retransmit_count += 1;
         self.last_transmit = Some(Instant::now());
 
-        // Exponential backoff
-        self.current_timeout = std::cmp::min(self.current_timeout * 2, self.max_timeout);
+        // Exponential backoff with jitter (RFC 6298-style)
+        // Add ±25% jitter to prevent synchronized retransmissions
+        let base_timeout = std::cmp::min(self.current_timeout * 2, self.max_timeout);
+
+        // Simple jitter: vary by ±25%
+        // In production, use a proper RNG. For now, use a deterministic pattern
+        // based on retransmit count to provide some variation
+        let jitter_percent = match self.retransmit_count % 4 {
+            0 => 75,  // -25%
+            1 => 90,  // -10%
+            2 => 110, // +10%
+            _ => 125, // +25%
+        };
+
+        self.current_timeout = Duration::from_millis(
+            (base_timeout.as_millis() as u64 * jitter_percent) / 100
+        );
+        self.current_timeout = std::cmp::min(self.current_timeout, self.max_timeout);
 
         Ok(())
     }
@@ -342,6 +408,49 @@ impl RetransmitTimer {
         self.current_timeout = self.initial_timeout;
         self.retransmit_count = 0;
         self.last_transmit = None;
+    }
+
+    /// Get the current timeout value
+    pub fn current_timeout(&self) -> Duration {
+        self.current_timeout
+    }
+
+    /// Get the number of retransmissions
+    pub fn retransmit_count(&self) -> u32 {
+        self.retransmit_count
+    }
+
+    /// Get time since last transmission
+    pub fn time_since_last_transmit(&self) -> Option<Duration> {
+        self.last_transmit.map(|last| last.elapsed())
+    }
+
+    /// Get remaining time until next retransmission
+    pub fn time_until_retransmit(&self) -> Option<Duration> {
+        self.last_transmit.map(|last| {
+            let elapsed = last.elapsed();
+            if elapsed >= self.current_timeout {
+                Duration::from_millis(0)
+            } else {
+                self.current_timeout - elapsed
+            }
+        })
+    }
+
+    /// Check if maximum retransmissions reached
+    pub fn max_retransmits_reached(&self) -> bool {
+        self.retransmit_count >= self.max_retransmits
+    }
+
+    /// Set custom maximum retransmissions (for testing or special cases)
+    pub fn set_max_retransmits(&mut self, max: u32) {
+        self.max_retransmits = max;
+    }
+
+    /// Set custom initial timeout (for testing or special cases)
+    pub fn set_initial_timeout(&mut self, timeout: Duration) {
+        self.initial_timeout = timeout;
+        self.current_timeout = timeout;
     }
 }
 
