@@ -44,13 +44,19 @@ pub enum SignatureAlgorithm {
     /// ML-DSA-87 (FIPS 204, formerly Dilithium5)
     MlDsa87,
 
-    // SLH-DSA (FIPS 205, hash-based signatures)
+    // SLH-DSA (FIPS 205, hash-based signatures) - SHA2 variants
     /// SLH-DSA-SHA2-128f (FIPS 205, 128-bit security, fast variant)
     SlhDsaSha2_128f,
     /// SLH-DSA-SHA2-192f (FIPS 205, 192-bit security, fast variant)
     SlhDsaSha2_192f,
     /// SLH-DSA-SHA2-256f (FIPS 205, 256-bit security, fast variant)
     SlhDsaSha2_256f,
+
+    // SLH-DSA (FIPS 205, hash-based signatures) - SHAKE variants
+    /// SLH-DSA-SHAKE-128f (FIPS 205, 128-bit security, fast variant, SHAKE-based)
+    SlhDsaShake128f,
+    /// SLH-DSA-SHAKE-256f (FIPS 205, 256-bit security, fast variant, SHAKE-based)
+    SlhDsaShake256f,
 }
 
 impl SignatureAlgorithm {
@@ -74,6 +80,8 @@ impl SignatureAlgorithm {
             SignatureAlgorithm::SlhDsaSha2_128f => 0x0A00, // Placeholder (not standardized)
             SignatureAlgorithm::SlhDsaSha2_192f => 0x0A01, // Placeholder
             SignatureAlgorithm::SlhDsaSha2_256f => 0x0A02, // Placeholder
+            SignatureAlgorithm::SlhDsaShake128f => 0x0A10, // Placeholder (not standardized)
+            SignatureAlgorithm::SlhDsaShake256f => 0x0A12, // Placeholder
         }
     }
 
@@ -97,6 +105,8 @@ impl SignatureAlgorithm {
             SignatureAlgorithm::SlhDsaSha2_128f => "slh_dsa_sha2_128f",
             SignatureAlgorithm::SlhDsaSha2_192f => "slh_dsa_sha2_192f",
             SignatureAlgorithm::SlhDsaSha2_256f => "slh_dsa_sha2_256f",
+            SignatureAlgorithm::SlhDsaShake128f => "slh_dsa_shake_128f",
+            SignatureAlgorithm::SlhDsaShake256f => "slh_dsa_shake_256f",
         }
     }
 
@@ -110,6 +120,8 @@ impl SignatureAlgorithm {
             | SignatureAlgorithm::SlhDsaSha2_128f
             | SignatureAlgorithm::SlhDsaSha2_192f
             | SignatureAlgorithm::SlhDsaSha2_256f
+            | SignatureAlgorithm::SlhDsaShake128f
+            | SignatureAlgorithm::SlhDsaShake256f
         )
     }
 
@@ -145,6 +157,8 @@ impl SignatureAlgorithm {
             0x0A00 => Some(SignatureAlgorithm::SlhDsaSha2_128f),
             0x0A01 => Some(SignatureAlgorithm::SlhDsaSha2_192f),
             0x0A02 => Some(SignatureAlgorithm::SlhDsaSha2_256f),
+            0x0A10 => Some(SignatureAlgorithm::SlhDsaShake128f),
+            0x0A12 => Some(SignatureAlgorithm::SlhDsaShake256f),
             _ => None,
         }
     }
