@@ -1,0 +1,22 @@
+[package]
+name = "hptls-sys"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+description = "Platform-specific bindings for HPTLS (kTLS, io_uring, etc.)"
+
+[dependencies]
+libc = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true }
+
+[features]
+default = []
+kTLS = []
+io-uring = []
