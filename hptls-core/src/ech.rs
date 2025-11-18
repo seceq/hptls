@@ -46,6 +46,12 @@ use zeroize::Zeroizing;
 /// ECH version (0xFE0D for draft-13)
 pub const ECH_VERSION: u16 = 0xFE0D;
 
+/// KEM ID for DHKEM(P-256, HKDF-SHA256) - RFC 9180
+pub const KEM_DHKEM_P256_HKDF_SHA256: u16 = 0x0010;
+
+/// KEM ID for DHKEM(X25519, HKDF-SHA256) - RFC 9180
+pub const KEM_DHKEM_X25519_HKDF_SHA256: u16 = 0x0020;
+
 /// Maximum name length for public_name
 pub const MAX_PUBLIC_NAME_LENGTH: usize = 255;
 
@@ -273,10 +279,22 @@ impl EchCipherSuite {
 
     /// Convert to HPKE cipher suite for crypto operations
     ///
-    /// # Note
-    /// Currently only supports P-256 KEM. X25519 support can be added later.
-    pub fn to_hpke_cipher_suite(&self) -> Result<hptls_crypto::HpkeCipherSuite> {
+    /// # Arguments
+    /// * `kem_id` - The KEM ID from EchConfig (0x0020 for P-256, 0x0020 for X25519)
+    pub fn to_hpke_cipher_suite(&self, kem_id: u16) -> Result<hptls_crypto::HpkeCipherSuite> {
         use hptls_crypto::{HpkeAead, HpkeCipherSuite, HpkeKdf, HpkeKem};
+
+        // Determine KEM from KEM ID
+        let kem = match kem_id {
+            0x0010 => HpkeKem::DhkemP256HkdfSha256,   // DHKEM(P-256, HKDF-SHA256)
+            0x0020 => HpkeKem::DhkemX25519HkdfSha256, // DHKEM(X25519, HKDF-SHA256)
+            _ => {
+                return Err(Error::UnsupportedFeature(format!(
+                    "Unsupported KEM ID: 0x{:04X}",
+                    kem_id
+                )))
+            }
+        };
 
         // Determine KDF
         let kdf = match self.kdf_id {
@@ -304,12 +322,7 @@ impl EchCipherSuite {
             }
         };
 
-        // Use P-256 KEM (most common for ECH)
-        Ok(HpkeCipherSuite::new(
-            HpkeKem::DhkemP256HkdfSha256,
-            kdf,
-            aead,
-        ))
+        Ok(HpkeCipherSuite::new(kem, kdf, aead))
     }
 
     /// Create from HPKE cipher suite
@@ -472,7 +485,7 @@ pub fn encrypt_client_hello_inner(
     provider: &dyn hptls_crypto::CryptoProvider,
 ) -> Result<(Vec<u8>, Vec<u8>)> {
     // Convert ECH cipher suite to HPKE cipher suite
-    let hpke_suite = cipher_suite.to_hpke_cipher_suite()?;
+    let hpke_suite = cipher_suite.to_hpke_cipher_suite(config.kem_id)?;
 
     // Get HPKE instance from provider
     let hpke = provider.hpke(hpke_suite)?;
@@ -525,7 +538,7 @@ pub fn decrypt_client_hello_inner(
     provider: &dyn hptls_crypto::CryptoProvider,
 ) -> Result<Vec<u8>> {
     // Convert ECH cipher suite to HPKE cipher suite
-    let hpke_suite = cipher_suite.to_hpke_cipher_suite()?;
+    let hpke_suite = cipher_suite.to_hpke_cipher_suite(config.kem_id)?;
 
     // Get HPKE instance from provider
     let hpke = provider.hpke(hpke_suite)?;
@@ -604,6 +617,7 @@ pub struct EchConfigBuilder {
     cipher_suites: Vec<EchCipherSuite>,
     maximum_name_length: u16,
     config_id: Option<[u8; 8]>,
+    kem_id: u16,
 }
 
 impl Default for EchConfigBuilder {
@@ -620,6 +634,7 @@ impl EchConfigBuilder {
             cipher_suites: Vec::new(),
             maximum_name_length: MAX_PUBLIC_NAME_LENGTH as u16,
             config_id: None,
+            kem_id: KEM_DHKEM_P256_HKDF_SHA256, // Default to P-256
         }
     }
 
@@ -658,15 +673,38 @@ impl EchConfigBuilder {
         self
     }
 
+    /// Set the KEM algorithm (default: P-256)
+    ///
+    /// # Arguments
+    /// * `kem_id` - KEM ID from RFC 9180:
+    ///   - `KEM_DHKEM_P256_HKDF_SHA256` (0x0010) for P-256
+    ///   - `KEM_DHKEM_X25519_HKDF_SHA256` (0x0020) for X25519
+    pub fn kem_id(mut self, kem_id: u16) -> Self {
+        self.kem_id = kem_id;
+        self
+    }
+
+    /// Use X25519 KEM (convenience method)
+    pub fn with_x25519(mut self) -> Self {
+        self.kem_id = KEM_DHKEM_X25519_HKDF_SHA256;
+        self
+    }
+
+    /// Use P-256 KEM (convenience method, also the default)
+    pub fn with_p256(mut self) -> Self {
+        self.kem_id = KEM_DHKEM_P256_HKDF_SHA256;
+        self
+    }
+
     /// Build the ECH configuration and generate keypair
     ///
     /// Returns (EchConfig, secret_key) where:
     /// - EchConfig should be published via DNS
     /// - secret_key must be kept confidential for decryption
     ///
-    /// # Note
-    /// Currently only generates P-256 keys (KEM ID 0x0018).
-    /// X25519 support can be added when available in hpcrypt-hpke.
+    /// # Supported KEMs
+    /// - P-256 (default): `KEM_DHKEM_P256_HKDF_SHA256` (0x0010)
+    /// - X25519: `KEM_DHKEM_X25519_HKDF_SHA256` (0x0020)
     pub fn build(
         self,
         provider: &dyn hptls_crypto::CryptoProvider,
@@ -691,11 +729,11 @@ impl EchConfigBuilder {
             id
         };
 
-        // Use P-256 KEM (0x0018) - the only one currently supported
-        let kem_id = 0x0018_u16; // DHKEM(P-256, HKDF-SHA256)
+        // Use configured KEM ID (P-256 by default, or X25519 if set)
+        let kem_id = self.kem_id;
 
-        // Generate HPKE keypair using the first cipher suite
-        let hpke_suite = self.cipher_suites[0].to_hpke_cipher_suite()?;
+        // Generate HPKE keypair using the first cipher suite and configured KEM
+        let hpke_suite = self.cipher_suites[0].to_hpke_cipher_suite(kem_id)?;
         let hpke = provider.hpke(hpke_suite)?;
         let (secret_key, public_key) = hpke.generate_keypair()?;
 
@@ -908,22 +946,29 @@ mod tests {
     fn test_ech_to_hpke_cipher_suite_conversion() {
         use hptls_crypto::{HpkeAead, HpkeKdf, HpkeKem};
 
-        // Test AES-128-GCM conversion
+        // Test P-256 with AES-128-GCM conversion
         let ech_cs = EchCipherSuite::HKDF_SHA256_AES128GCM;
-        let hpke_cs = ech_cs.to_hpke_cipher_suite().unwrap();
+        let hpke_cs = ech_cs.to_hpke_cipher_suite(KEM_DHKEM_P256_HKDF_SHA256).unwrap();
         assert_eq!(hpke_cs.kem, HpkeKem::DhkemP256HkdfSha256);
         assert_eq!(hpke_cs.kdf, HpkeKdf::HkdfSha256);
         assert_eq!(hpke_cs.aead, HpkeAead::Aes128Gcm);
 
-        // Test AES-256-GCM conversion
+        // Test P-256 with AES-256-GCM conversion
         let ech_cs = EchCipherSuite::HKDF_SHA256_AES256GCM;
-        let hpke_cs = ech_cs.to_hpke_cipher_suite().unwrap();
+        let hpke_cs = ech_cs.to_hpke_cipher_suite(KEM_DHKEM_P256_HKDF_SHA256).unwrap();
         assert_eq!(hpke_cs.aead, HpkeAead::Aes256Gcm);
 
-        // Test ChaCha20-Poly1305 conversion
+        // Test P-256 with ChaCha20-Poly1305 conversion
         let ech_cs = EchCipherSuite::HKDF_SHA256_CHACHA20POLY1305;
-        let hpke_cs = ech_cs.to_hpke_cipher_suite().unwrap();
+        let hpke_cs = ech_cs.to_hpke_cipher_suite(KEM_DHKEM_P256_HKDF_SHA256).unwrap();
         assert_eq!(hpke_cs.aead, HpkeAead::ChaCha20Poly1305);
+
+        // Test X25519 with AES-128-GCM conversion
+        let ech_cs = EchCipherSuite::HKDF_SHA256_AES128GCM;
+        let hpke_cs = ech_cs.to_hpke_cipher_suite(KEM_DHKEM_X25519_HKDF_SHA256).unwrap();
+        assert_eq!(hpke_cs.kem, HpkeKem::DhkemX25519HkdfSha256);
+        assert_eq!(hpke_cs.kdf, HpkeKdf::HkdfSha256);
+        assert_eq!(hpke_cs.aead, HpkeAead::Aes128Gcm);
     }
 
     #[test]
@@ -941,7 +986,8 @@ mod tests {
         assert_eq!(ech_cs.aead_id, 0x0001);
 
         // Round-trip test
-        let hpke_cs2 = ech_cs.to_hpke_cipher_suite().unwrap();
+        let hpke_cs2 = ech_cs.to_hpke_cipher_suite(KEM_DHKEM_P256_HKDF_SHA256).unwrap();
+        assert_eq!(hpke_cs2.kem, hpke_cs.kem);
         assert_eq!(hpke_cs2.kdf, hpke_cs.kdf);
         assert_eq!(hpke_cs2.aead, hpke_cs.aead);
     }
@@ -961,7 +1007,7 @@ mod tests {
         // Create ECH config
         let config = EchConfig::new(
             [1, 2, 3, 4, 5, 6, 7, 8],
-            0x0018, // P-256 KEM ID
+            KEM_DHKEM_P256_HKDF_SHA256, // P-256 KEM ID
             public_key.clone(),
             vec![EchCipherSuite::HKDF_SHA256_AES128GCM],
             "public.example.com".to_string(),
@@ -1033,7 +1079,7 @@ mod tests {
 
             let config = EchConfig::new(
                 [1; 8],
-                0x0018,
+                KEM_DHKEM_P256_HKDF_SHA256,
                 public_key,
                 vec![ech_suite],
                 "test.example.com".to_string(),
@@ -1111,7 +1157,7 @@ mod tests {
 
         let config = EchConfig::new(
             [1; 8],
-            0x0018,
+            KEM_DHKEM_P256_HKDF_SHA256,
             public_key1,
             vec![EchCipherSuite::HKDF_SHA256_AES128GCM],
             "test.example.com".to_string(),
@@ -1156,7 +1202,7 @@ mod tests {
         assert_eq!(config.version, ECH_VERSION);
         assert_eq!(config.public_name, "example.com");
         assert_eq!(config.cipher_suites.len(), 2);
-        assert_eq!(config.kem_id, 0x0018); // P-256
+        assert_eq!(config.kem_id, KEM_DHKEM_P256_HKDF_SHA256); // P-256
         assert!(!config.public_key.is_empty());
         assert!(!secret_key.is_empty());
 
@@ -1271,5 +1317,178 @@ mod tests {
         .unwrap();
 
         assert_eq!(decrypted, client_hello_inner);
+    }
+
+    #[test]
+    fn test_x25519_ech_config_builder() {
+        use hptls_crypto::CryptoProvider;
+        use hptls_crypto_hpcrypt::HpcryptProvider;
+
+        let provider = <HpcryptProvider as CryptoProvider>::new();
+
+        // Build X25519 config using with_x25519() convenience method
+        let (config, secret_key) = EchConfigBuilder::new()
+            .public_name("example.com")
+            .add_cipher_suite(EchCipherSuite::HKDF_SHA256_AES128GCM)
+            .add_cipher_suite(EchCipherSuite::HKDF_SHA256_AES256GCM)
+            .with_x25519()
+            .build(&provider)
+            .unwrap();
+
+        assert_eq!(config.version, ECH_VERSION);
+        assert_eq!(config.public_name, "example.com");
+        assert_eq!(config.cipher_suites.len(), 2);
+        assert_eq!(config.kem_id, KEM_DHKEM_X25519_HKDF_SHA256); // X25519
+        assert_eq!(config.public_key.len(), 32); // X25519 public key is 32 bytes
+        assert_eq!(secret_key.len(), 32); // X25519 secret key is 32 bytes
+
+        // Verify config is valid by encoding/decoding
+        let encoded = config.encode().unwrap();
+        let decoded = EchConfig::decode(&encoded).unwrap();
+        assert_eq!(config.version, decoded.version);
+        assert_eq!(config.config_id, decoded.config_id);
+        assert_eq!(config.kem_id, decoded.kem_id);
+    }
+
+    #[test]
+    fn test_x25519_ech_encrypt_decrypt_round_trip() {
+        use hptls_crypto_hpcrypt::HpcryptProvider;
+        use hptls_crypto::CryptoProvider;
+
+        let provider = HpcryptProvider::new();
+
+        // Generate X25519 HPKE keypair for testing
+        let hpke_suite = hptls_crypto::HpkeCipherSuite::ech_x25519();
+        let hpke = provider.hpke(hpke_suite).unwrap();
+        let (secret_key, public_key) = hpke.generate_keypair().unwrap();
+
+        // Create X25519 ECH config
+        let config = EchConfig::new(
+            [1, 2, 3, 4, 5, 6, 7, 8],
+            KEM_DHKEM_X25519_HKDF_SHA256, // X25519 KEM ID
+            public_key.clone(),
+            vec![EchCipherSuite::HKDF_SHA256_AES128GCM],
+            "public.example.com".to_string(),
+        )
+        .unwrap();
+
+        // Test data - simulated ClientHelloInner
+        let client_hello_inner = b"This is a secret ClientHello with X25519";
+
+        // Encrypt
+        let cipher_suite = EchCipherSuite::HKDF_SHA256_AES128GCM;
+        let (enc, ciphertext) =
+            encrypt_client_hello_inner(&config, &cipher_suite, client_hello_inner, &provider)
+                .unwrap();
+
+        // Verify enc has correct length (X25519 public key)
+        assert_eq!(enc.len(), 32);
+
+        // Decrypt
+        let decrypted = decrypt_client_hello_inner(
+            &config,
+            &cipher_suite,
+            &enc,
+            &ciphertext,
+            &secret_key,
+            &provider,
+        )
+        .unwrap();
+
+        // Verify round-trip
+        assert_eq!(decrypted, client_hello_inner);
+    }
+
+    #[test]
+    fn test_x25519_ech_with_all_cipher_suites() {
+        use hptls_crypto_hpcrypt::HpcryptProvider;
+        use hptls_crypto::{CryptoProvider, HpkeCipherSuite};
+
+        let provider = HpcryptProvider::new();
+        let client_hello_inner = b"Secret ClientHello with X25519";
+
+        // Test X25519 with each cipher suite
+        let test_cases = vec![
+            (
+                EchCipherSuite::HKDF_SHA256_AES128GCM,
+                HpkeCipherSuite::ech_x25519(),
+            ),
+            (
+                EchCipherSuite::HKDF_SHA256_AES256GCM,
+                HpkeCipherSuite::new(
+                    hptls_crypto::HpkeKem::DhkemX25519HkdfSha256,
+                    hptls_crypto::HpkeKdf::HkdfSha256,
+                    hptls_crypto::HpkeAead::Aes256Gcm,
+                ),
+            ),
+            (
+                EchCipherSuite::HKDF_SHA256_CHACHA20POLY1305,
+                HpkeCipherSuite::new(
+                    hptls_crypto::HpkeKem::DhkemX25519HkdfSha256,
+                    hptls_crypto::HpkeKdf::HkdfSha256,
+                    hptls_crypto::HpkeAead::ChaCha20Poly1305,
+                ),
+            ),
+        ];
+
+        for (ech_suite, hpke_suite) in test_cases {
+            let hpke = provider.hpke(hpke_suite).unwrap();
+            let (secret_key, public_key) = hpke.generate_keypair().unwrap();
+
+            let config = EchConfig::new(
+                [1; 8],
+                KEM_DHKEM_X25519_HKDF_SHA256,
+                public_key,
+                vec![ech_suite],
+                "test.example.com".to_string(),
+            )
+            .unwrap();
+
+            let (enc, ciphertext) =
+                encrypt_client_hello_inner(&config, &ech_suite, client_hello_inner, &provider)
+                    .unwrap();
+
+            assert_eq!(enc.len(), 32); // X25519 enc is 32 bytes
+
+            let decrypted = decrypt_client_hello_inner(
+                &config,
+                &ech_suite,
+                &enc,
+                &ciphertext,
+                &secret_key,
+                &provider,
+            )
+            .unwrap();
+
+            assert_eq!(decrypted, client_hello_inner);
+        }
+    }
+
+    #[test]
+    fn test_kem_id_setter() {
+        use hptls_crypto::CryptoProvider;
+        use hptls_crypto_hpcrypt::HpcryptProvider;
+
+        let provider = <HpcryptProvider as CryptoProvider>::new();
+
+        // Test explicit kem_id() setter
+        let (config, _) = EchConfigBuilder::new()
+            .public_name("example.com")
+            .add_cipher_suite(EchCipherSuite::HKDF_SHA256_AES128GCM)
+            .kem_id(KEM_DHKEM_X25519_HKDF_SHA256)
+            .build(&provider)
+            .unwrap();
+
+        assert_eq!(config.kem_id, KEM_DHKEM_X25519_HKDF_SHA256);
+
+        // Test with_p256() convenience method
+        let (config, _) = EchConfigBuilder::new()
+            .public_name("example.com")
+            .add_cipher_suite(EchCipherSuite::HKDF_SHA256_AES128GCM)
+            .with_p256()
+            .build(&provider)
+            .unwrap();
+
+        assert_eq!(config.kem_id, KEM_DHKEM_P256_HKDF_SHA256);
     }
 }
