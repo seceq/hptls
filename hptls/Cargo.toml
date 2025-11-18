@@ -16,6 +16,8 @@ description = "High-Performance TLS library for Rust"
 # Internal dependencies
 hptls-core = { workspace = true }
 hptls-crypto = { workspace = true }
+hptls-crypto-hpcrypt = { path = "../hptls-crypto-hpcrypt" }
+hptls-sys = { workspace = true, optional = true }
 
 # Essential dependencies
 bytes = { workspace = true }
@@ -43,6 +45,14 @@ path = "../examples/https_client.rs"
 name = "https_server"
 path = "../examples/https_server.rs"
 
+[[example]]
+name = "dtls_client"
+path = "../examples/dtls_client.rs"
+
+[[example]]
+name = "dtls_server"
+path = "../examples/dtls_server.rs"
+
 [features]
 default = ["std", "tls13"]
 std = ["hptls-core/std"]
@@ -57,8 +67,8 @@ quic = ["hptls-core/quic"]
 
 # Performance features
 simd = ["hptls-core/simd"]
-kTLS = ["hptls-core/kTLS"]
-io-uring = ["hptls-core/io-uring"]
+kTLS = ["hptls-core/kTLS", "hptls-sys"]
+io-uring = ["hptls-core/io-uring", "hptls-sys"]
 
 # Security features
 post-quantum = ["hptls-core/post-quantum"]
