@@ -24,7 +24,7 @@ impl CertificateVerify {
 
     pub fn encode(&self) -> Result<Vec<u8>> {
         let mut buf = BytesMut::new();
-        buf.put_u16(self.algorithm as u16);
+        buf.put_u16(self.algorithm.iana_codepoint());
         if self.signature.len() > 65535 {
             return Err(Error::InvalidMessage("Signature too large".into()));
         }
