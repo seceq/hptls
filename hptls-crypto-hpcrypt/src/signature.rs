@@ -64,53 +64,32 @@ pub fn create_signature(algorithm: SignatureAlgorithm) -> Result<Box<dyn Signatu
         SignatureAlgorithm::MlDsa65 => Ok(Box::new(crate::mldsa::MlDsa65Sig)),
         SignatureAlgorithm::MlDsa87 => Ok(Box::new(crate::mldsa::MlDsa87Sig)),
 
-        // Post-Quantum signatures - SLH-DSA
+        // Post-Quantum signatures - SLH-DSA (SHA2 variants)
         SignatureAlgorithm::SlhDsaSha2_128f => Ok(Box::new(crate::slhdsa::SlhDsaSha2_128f)),
         SignatureAlgorithm::SlhDsaSha2_192f => Ok(Box::new(crate::slhdsa::SlhDsaSha2_192f)),
         SignatureAlgorithm::SlhDsaSha2_256f => Ok(Box::new(crate::slhdsa::SlhDsaSha2_256f)),
 
-        // Not yet implemented
-        SignatureAlgorithm::Ed448
-        | SignatureAlgorithm::EcdsaSecp521r1Sha512
-        | SignatureAlgorithm::RsaPkcs1Sha256
+        // Post-Quantum signatures - SLH-DSA (SHAKE variants)
+        SignatureAlgorithm::SlhDsaShake128f => Ok(Box::new(crate::slhdsa::SlhDsaShake128f)),
+        SignatureAlgorithm::SlhDsaShake256f => Ok(Box::new(crate::slhdsa::SlhDsaShake256f)),
+
+        // Additional EdDSA
+        SignatureAlgorithm::Ed448 => Ok(Box::new(Ed448Sig)),
+
+        // Additional ECDSA
+        SignatureAlgorithm::EcdsaSecp521r1Sha512 => Ok(Box::new(EcdsaP521Sig)),
+
+        // RSA PKCS#1 v1.5 not implemented (forbidden in TLS 1.3)
+        SignatureAlgorithm::RsaPkcs1Sha256
         | SignatureAlgorithm::RsaPkcs1Sha384
         | SignatureAlgorithm::RsaPkcs1Sha512 => Err(Error::UnsupportedAlgorithm(format!(
-            "Signature algorithm {:?} not yet implemented",
+            "Signature algorithm {:?} - RSA PKCS#1 v1.5 is forbidden in TLS 1.3",
             algorithm
         ))),
     }
 }
 
-/// Ed25519 digital signature algorithm implementation.
-///
-/// Edwards-curve Digital Signature Algorithm using Curve25519 (EdDSA).
-/// - Curve: Edwards25519 (twisted Edwards form of Curve25519)
-/// - Private key size: 32 bytes (256 bits)
-/// - Public key size: 32 bytes (256 bits)
-/// - Signature size: 64 bytes (512 bits)
-/// - Security level: ~128 bits
-///
-/// # Algorithm
-///
-/// Ed25519 is a deterministic signature scheme based on the EdDSA algorithm:
-/// - Signature: (R, s) where R is a curve point and s is a scalar
-/// - No hash function parameter needed (uses SHA-512 internally)
-/// - Deterministic (same message + key always produces same signature)
-///
-/// # Security
-///
-/// Ed25519 provides strong security guarantees:
-/// - Deterministic signatures (resistant to bad RNG attacks)
-/// - Constant-time implementation (timing attack resistant)
-/// - Uses SHA-512 internally for collision resistance
-/// - Compact 32-byte keys and 64-byte signatures
-/// - NIST FIPS 186-5 approved
-///
-/// # Standards
-///
-/// - RFC 8032: Edwards-Curve Digital Signature Algorithm (EdDSA)
-/// - RFC 8446: TLS 1.3 (supported signature algorithm)
-/// - FIPS 186-5: Digital Signature Standard (Ed25519 approved)
+/// Ed25519 signature implementation.
 #[derive(Debug)]
 struct Ed25519Sig;
 
@@ -183,37 +162,7 @@ impl Signature for Ed25519Sig {
     }
 }
 
-/// ECDSA P-256 (secp256r1) with SHA-256 signature algorithm.
-///
-/// Elliptic Curve Digital Signature Algorithm using NIST P-256 curve.
-/// - Curve: NIST P-256 (secp256r1, prime256v1)
-/// - Private key size: 32 bytes (256 bits)
-/// - Public key size: 65 bytes (uncompressed SEC1 format: 0x04 || x || y)
-/// - Signature size: Variable (DER-encoded, typically 70-72 bytes)
-/// - Hash function: SHA-256
-/// - Security level: ~128 bits
-///
-/// # Algorithm
-///
-/// ECDSA generates signatures using elliptic curve arithmetic:
-/// - Signature: (r, s) where r and s are scalars mod curve order
-/// - Uses SHA-256 to hash the message before signing
-/// - Encoded in DER format for TLS compatibility
-///
-/// # Security
-///
-/// ECDSA P-256 is a FIPS-approved signature algorithm widely used in TLS:
-/// - NIST-standardized curve with broad hardware support
-/// - Strong security with efficient computation
-/// - Requires good randomness for signature generation (vulnerable to bad RNG)
-/// - Note: Ed25519 is generally preferred for new applications due to better security properties
-///
-/// # Standards
-///
-/// - FIPS 186-5: Digital Signature Standard (ECDSA approved)
-/// - RFC 6979: Deterministic Usage of DSA and ECDSA (optional)
-/// - RFC 8446: TLS 1.3 (supported signature algorithm)
-/// - SEC 1: Elliptic Curve Cryptography (curve specification)
+/// ECDSA P-256 (secp256r1) with SHA-256 signature implementation.
 #[derive(Debug)]
 struct EcdsaP256Sig;
 
@@ -302,39 +251,7 @@ impl Signature for EcdsaP256Sig {
     }
 }
 
-/// ECDSA P-384 (secp384r1) with SHA-384 signature algorithm.
-///
-/// Elliptic Curve Digital Signature Algorithm using NIST P-384 curve.
-/// - Curve: NIST P-384 (secp384r1)
-/// - Private key size: 48 bytes (384 bits)
-/// - Public key size: 97 bytes (uncompressed SEC1 format: 0x04 || x || y)
-/// - Signature size: Variable (DER-encoded, typically 102-104 bytes)
-/// - Hash function: SHA-384
-/// - Security level: ~192 bits
-///
-/// # Algorithm
-///
-/// ECDSA generates signatures using elliptic curve arithmetic:
-/// - Signature: (r, s) where r and s are scalars mod curve order
-/// - Uses SHA-384 to hash the message before signing
-/// - Encoded in DER format for TLS compatibility
-///
-/// # Security
-///
-/// ECDSA P-384 provides stronger security than P-256 and is recommended for
-/// high-security applications:
-/// - NIST-standardized curve with NSA Suite B approval
-/// - Suitable for TOP SECRET information (per NSA guidelines)
-/// - Requires good randomness for signature generation
-/// - Commonly paired with AES-256-GCM in TLS
-///
-/// # Standards
-///
-/// - FIPS 186-5: Digital Signature Standard (ECDSA approved)
-/// - RFC 6979: Deterministic Usage of DSA and ECDSA (optional)
-/// - RFC 8446: TLS 1.3 (supported signature algorithm)
-/// - SEC 1: Elliptic Curve Cryptography (curve specification)
-/// - NSA Suite B Cryptography
+/// ECDSA P-384 (secp384r1) with SHA-384 signature implementation.
 #[derive(Debug)]
 struct EcdsaP384Sig;
 
@@ -415,45 +332,85 @@ impl Signature for EcdsaP384Sig {
     }
 }
 
-/// RSA-PSS with SHA-256 signature algorithm.
+/// ECDSA P-521 (secp521r1) with SHA-512 signature implementation.
+#[derive(Debug)]
+struct EcdsaP521Sig;
+
+impl Signature for EcdsaP521Sig {
+    fn sign(&self, signing_key: &[u8], message: &[u8]) -> Result<Vec<u8>> {
+        // For P-521, signing key is 66 bytes
+        if signing_key.len() != 66 {
+            return Err(Error::CryptoError(format!(
+                "ECDSA P-521 signing key must be 66 bytes, got {}",
+                signing_key.len()
+            )));
+        }
+
+        let signing_key_array: [u8; 66] = signing_key.try_into().unwrap();
+
+        // Create SigningKey from bytes
+        let sk = hpcrypt_signatures::ecdsa_p521::SigningKey::from_bytes(&signing_key_array)
+            .ok_or_else(|| Error::CryptoError("Invalid P-521 signing key".to_string()))?;
+
+        // Sign (will hash with SHA-512 internally)
+        let signature = sk.sign(message);
+
+        // Convert to DER encoding for TLS
+        let (der_bytes, len) = signature.to_der();
+        Ok(der_bytes[..len].to_vec())
+    }
+
+    fn verify(&self, verifying_key: &[u8], message: &[u8], signature: &[u8]) -> Result<()> {
+        // Verifying key is in SEC1 uncompressed format (133 bytes: 0x04 || x || y)
+        if verifying_key.len() != 133 {
+            return Err(Error::CryptoError(format!(
+                "ECDSA P-521 verifying key must be 133 bytes (uncompressed), got {}",
+                verifying_key.len()
+            )));
+        }
+
+        let verifying_key_array: [u8; 133] = verifying_key.try_into().unwrap();
+
+        // Parse verifying key from SEC1 uncompressed format
+        let vk = hpcrypt_signatures::ecdsa_p521::VerifyingKey::from_sec1_uncompressed(&verifying_key_array)
+            .map_err(|e| Error::CryptoError(format!("Invalid P-521 verifying key: {:?}", e)))?;
+
+        // Parse signature from DER encoding
+        let sig = hpcrypt_signatures::ecdsa_p521::Signature::from_der(signature)
+            .ok_or_else(|| Error::CryptoError("Invalid P-521 signature DER".to_string()))?;
+
+        // Verify (will hash message with SHA-512 internally)
+        if vk.verify(message, &sig) {
+            Ok(())
+        } else {
+            Err(Error::CryptoError(
+                "ECDSA P-521 signature verification failed".to_string(),
+            ))
+        }
+    }
+
+    fn algorithm(&self) -> SignatureAlgorithm {
+        SignatureAlgorithm::EcdsaSecp521r1Sha512
+    }
+
+    fn generate_keypair(&self) -> Result<(SigningKey, VerifyingKey)> {
+        // Generate a signing key using hpcrypt-signatures
+        let sk = hpcrypt_signatures::ecdsa_p521::SigningKey::generate();
+
+        // Derive public key
+        let vk = sk.verifying_key();
+
+        Ok((
+            SigningKey::from_bytes(sk.to_bytes().to_vec()),
+            VerifyingKey::from_bytes(vk.to_sec1_uncompressed().to_vec()),
+        ))
+    }
+}
+
+/// RSA-PSS with SHA-256 signature implementation.
 ///
-/// RSA Probabilistic Signature Scheme using SHA-256 hash function.
-/// - Key size: Variable (typically 2048, 3072, or 4096 bits)
-/// - Signature size: Same as key size (256, 384, or 512 bytes)
-/// - Hash function: SHA-256
-/// - Salt length: 32 bytes (equal to hash output)
-/// - Security level: Depends on key size (2048-bit ~ 112 bits)
-///
-/// # Algorithm
-///
-/// RSA-PSS is a probabilistic signature scheme with provable security:
-/// - Uses randomized padding (PSS = Probabilistic Signature Scheme)
-/// - MGF1 (Mask Generation Function) with SHA-256
-/// - Salt length equals hash length for maximum security
-/// - More secure than older RSA PKCS#1 v1.5 signatures
-///
-/// # Security
-///
-/// RSA-PSS is the modern RSA signature standard with stronger security guarantees:
-/// - Provable security in the random oracle model
-/// - Resistant to forgery attacks that affect PKCS#1 v1.5
-/// - Randomized signatures (different signatures for same message)
-/// - Recommended over RSA PKCS#1 v1.5 for new applications
-///
-/// Key size recommendations:
-/// - 2048-bit: Minimum for TLS 1.3, secure until ~2030
-/// - 3072-bit: Recommended for high-security, secure beyond 2030
-/// - 4096-bit: Maximum security, but slower performance
-///
-/// # Standards
-///
-/// - FIPS 186-5: Digital Signature Standard (RSA-PSS approved)
-/// - RFC 8017: PKCS#1 v2.2 - RSA Cryptography Specifications
-/// - RFC 8446: TLS 1.3 (mandatory-to-implement signature algorithm)
-///
-/// # Note
-///
-/// Keys are expected in PKCS#8 (private) or X.509 SubjectPublicKeyInfo (public) DER format.
+/// Note: This implementation expects keys in a simple serialized format for now.
+/// For production TLS use, proper PKCS#8/PKCS#1 DER parsing should be added.
 #[derive(Debug)]
 struct RsaPssSha256Sig;
 
@@ -513,41 +470,7 @@ impl Signature for RsaPssSha256Sig {
     }
 }
 
-/// RSA-PSS with SHA-384 signature algorithm.
-///
-/// RSA Probabilistic Signature Scheme using SHA-384 hash function.
-/// - Key size: Variable (typically 2048, 3072, or 4096 bits)
-/// - Signature size: Same as key size (256, 384, or 512 bytes)
-/// - Hash function: SHA-384
-/// - Salt length: 48 bytes (equal to hash output)
-/// - Security level: Depends on key size (2048-bit ~ 112 bits)
-///
-/// # Algorithm
-///
-/// RSA-PSS is a probabilistic signature scheme with provable security:
-/// - Uses randomized padding (PSS = Probabilistic Signature Scheme)
-/// - MGF1 (Mask Generation Function) with SHA-384
-/// - Salt length equals hash length for maximum security
-/// - More secure than older RSA PKCS#1 v1.5 signatures
-///
-/// # Security
-///
-/// RSA-PSS is the modern RSA signature standard with stronger security guarantees:
-/// - Provable security in the random oracle model
-/// - Resistant to forgery attacks that affect PKCS#1 v1.5
-/// - Randomized signatures (different signatures for same message)
-/// - Recommended over RSA PKCS#1 v1.5 for new applications
-///
-/// Key size recommendations:
-/// - 2048-bit: Minimum for TLS 1.3, secure until ~2030
-/// - 3072-bit: Recommended for high-security, secure beyond 2030
-/// - 4096-bit: Maximum security, but slower performance
-///
-/// # Standards
-///
-/// - FIPS 186-5: Digital Signature Standard (RSA-PSS approved)
-/// - RFC 8017: PKCS#1 v2.2 - RSA Cryptography Specifications
-/// - RFC 8446: TLS 1.3 (mandatory-to-implement signature algorithm)
+/// RSA-PSS with SHA-384 signature implementation.
 #[derive(Debug)]
 struct RsaPssSha384Sig;
 
@@ -593,42 +516,7 @@ impl Signature for RsaPssSha384Sig {
     }
 }
 
-/// RSA-PSS with SHA-512 signature algorithm.
-///
-/// RSA Probabilistic Signature Scheme using SHA-512 hash function.
-/// - Key size: Variable (typically 2048, 3072, or 4096 bits)
-/// - Signature size: Same as key size (256, 384, or 512 bytes)
-/// - Hash function: SHA-512
-/// - Salt length: 64 bytes (equal to hash output)
-/// - Security level: Depends on key size (2048-bit ~ 112 bits)
-///
-/// # Algorithm
-///
-/// RSA-PSS is a probabilistic signature scheme with provable security:
-/// - Uses randomized padding (PSS = Probabilistic Signature Scheme)
-/// - MGF1 (Mask Generation Function) with SHA-512
-/// - Salt length equals hash length for maximum security
-/// - More secure than older RSA PKCS#1 v1.5 signatures
-///
-/// # Security
-///
-/// RSA-PSS with SHA-512 provides the highest security level for RSA signatures:
-/// - Provable security in the random oracle model
-/// - Resistant to forgery attacks that affect PKCS#1 v1.5
-/// - Strongest hash function in the SHA-2 family
-/// - Suitable for long-term security and high-value transactions
-/// - Recommended for applications requiring maximum cryptographic strength
-///
-/// Key size recommendations:
-/// - 2048-bit: Minimum for TLS 1.3, secure until ~2030
-/// - 3072-bit: Recommended for high-security, secure beyond 2030
-/// - 4096-bit: Maximum security, but slower performance
-///
-/// # Standards
-///
-/// - FIPS 186-5: Digital Signature Standard (RSA-PSS approved)
-/// - RFC 8017: PKCS#1 v2.2 - RSA Cryptography Specifications
-/// - RFC 8446: TLS 1.3 (supported signature algorithm)
+/// RSA-PSS with SHA-512 signature implementation.
 #[derive(Debug)]
 struct RsaPssSha512Sig;
 
@@ -734,6 +622,24 @@ mod tests {
     }
 
     #[test]
+    fn test_ecdsa_p521_roundtrip() {
+        let sig = EcdsaP521Sig;
+
+        // Generate a keypair
+        let (signing_key, verifying_key) = sig.generate_keypair().unwrap();
+        assert_eq!(signing_key.as_bytes().len(), 66);
+        assert_eq!(verifying_key.as_bytes().len(), 133); // Uncompressed SEC1 format
+
+        // Sign a message
+        let message = b"test message for P-521";
+        let signature = sig.sign(signing_key.as_bytes(), message).unwrap();
+
+        // Verify the signature
+        sig.verify(verifying_key.as_bytes(), message, &signature)
+            .unwrap();
+    }
+
+    #[test]
     fn test_rsa_pss_sha256_basic() {
         // This test verifies that RSA-PSS implementation compiles and the API works.
         // For now, we cannot test the full roundtrip without DER encoding support.
@@ -759,3 +665,77 @@ mod tests {
         assert_eq!(sig.algorithm(), SignatureAlgorithm::RsaPssRsaeSha512);
     }
 }
+
+/// Ed448 signature implementation.
+#[derive(Debug)]
+struct Ed448Sig;
+
+impl Signature for Ed448Sig {
+    fn sign(&self, signing_key: &[u8], message: &[u8]) -> Result<Vec<u8>> {
+        // Validate key size
+        if signing_key.len() != 57 {
+            return Err(Error::CryptoError(format!(
+                "Ed448 signing key must be 57 bytes, got {}",
+                signing_key.len()
+            )));
+        }
+
+        let signing_key_array: [u8; 57] = signing_key.try_into().unwrap();
+
+        // Sign using hpcrypt Ed448
+        let signature = hpcrypt_curves::ed448::sign(&signing_key_array, message);
+
+        Ok(signature.to_vec())
+    }
+
+    fn verify(&self, verifying_key: &[u8], message: &[u8], signature: &[u8]) -> Result<()> {
+        // Validate key size
+        if verifying_key.len() != 57 {
+            return Err(Error::CryptoError(format!(
+                "Ed448 verifying key must be 57 bytes, got {}",
+                verifying_key.len()
+            )));
+        }
+
+        // Validate signature size
+        if signature.len() != 114 {
+            return Err(Error::CryptoError(format!(
+                "Ed448 signature must be 114 bytes, got {}",
+                signature.len()
+            )));
+        }
+
+        let verifying_key_array: [u8; 57] = verifying_key.try_into().unwrap();
+        let signature_array: [u8; 114] = signature.try_into().unwrap();
+
+        // Verify using hpcrypt Ed448
+        if hpcrypt_curves::ed448::verify(&verifying_key_array, message, &signature_array) {
+            Ok(())
+        } else {
+            Err(Error::CryptoError(
+                "Ed448 signature verification failed".to_string(),
+            ))
+        }
+    }
+
+    fn algorithm(&self) -> SignatureAlgorithm {
+        SignatureAlgorithm::Ed448
+    }
+
+    fn generate_keypair(&self) -> Result<(SigningKey, VerifyingKey)> {
+        // Generate a random 57-byte key
+        let mut key = vec![0u8; 57];
+        hpcrypt_rng::generate_random_bytes(&mut key)
+            .map_err(|_| Error::CryptoError("Failed to generate random Ed448 key".to_string()))?;
+
+        // Derive public key
+        let signing_key_array: [u8; 57] = key.clone().try_into().unwrap();
+        let verifying_key = hpcrypt_curves::ed448::public_key(&signing_key_array);
+
+        Ok((
+            SigningKey::from_bytes(key),
+            VerifyingKey::from_bytes(verifying_key.to_vec()),
+        ))
+    }
+}
+
