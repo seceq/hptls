@@ -4,7 +4,9 @@ members = [
     "hptls",
     "hptls-core",
     "hptls-crypto",
+    "hptls-crypto-mock",
     "hptls-crypto-hpcrypt",
+    "hptls-sys",
     "benchmarks",
 ]
 
@@ -24,6 +26,7 @@ categories = ["cryptography", "network-programming", "asynchronous"]
 # Internal crates
 hptls-core = { version = "0.1.0", path = "hptls-core" }
 hptls-crypto = { version = "0.1.0", path = "hptls-crypto" }
+hptls-sys = { version = "0.1.0", path = "hptls-sys" }
 
 # Async runtime
 tokio = { version = "1.35", features = ["full"] }
@@ -47,6 +50,7 @@ hpcrypt-rng = { path = "../hpcrypt-seceq/hpcrypt-rng", version = "0.1" }
 hpcrypt-mlkem = { path = "../hpcrypt-seceq/hpcrypt-mlkem", version = "0.1" }
 hpcrypt-mldsa = { path = "../hpcrypt-seceq/hpcrypt-mldsa", version = "0.1" }
 hpcrypt-slhdsa = { path = "../hpcrypt-seceq/hpcrypt-slhdsa", version = "0.1" }
+hpcrypt-hpke = { path = "../hpcrypt-seceq/hpcrypt-hpke", version = "0.1" }
 
 # Serialization
 bytes = "1.5"
