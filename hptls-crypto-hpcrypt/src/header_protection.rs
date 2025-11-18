@@ -40,41 +40,7 @@ pub fn create_header_protection(
     }
 }
 
-/// AES-128 header protection for QUIC packets.
-///
-/// Provides header protection using AES-128 in ECB mode for QUIC packet headers.
-/// - Algorithm: AES-128-ECB
-/// - Key size: 16 bytes (128 bits)
-/// - Sample size: 16 bytes (128 bits)
-/// - Mask size: 5 bytes (first 5 bytes of AES output)
-///
-/// # Algorithm
-///
-/// Header protection uses AES-ECB to generate a mask:
-/// ```text
-/// mask = AES-ECB(header_protection_key, sample)[0..5]
-/// ```
-/// The mask is XORed with packet number and first byte of header.
-///
-/// # Security
-///
-/// Header protection is not encryption - it only obfuscates packet metadata:
-/// - Protects packet number from passive observers
-/// - Prevents correlation of packets in a connection
-/// - Does NOT provide confidentiality (packets are separately encrypted)
-/// - Uses ECB mode safely (each sample is unique and random)
-///
-/// # Usage Context
-///
-/// Used exclusively in QUIC protocol (not TLS):
-/// - Required by RFC 9001 for QUIC-TLS integration
-/// - Applied after packet payload encryption
-/// - Protects both long and short header packets
-///
-/// # Standards
-///
-/// - RFC 9001: Using TLS to Secure QUIC (Section 5.4: Header Protection)
-/// - RFC 9000: QUIC: A UDP-Based Multiplexed and Secure Transport
+/// AES-128 header protection implementation.
 struct HeaderProtectionAes128 {
     inner: hpcrypt_kdf::HeaderProtectionAes128,
 }
@@ -103,42 +69,7 @@ impl HeaderProtection for HeaderProtectionAes128 {
     }
 }
 
-/// AES-256 header protection for QUIC packets.
-///
-/// Provides header protection using AES-256 in ECB mode for QUIC packet headers.
-/// - Algorithm: AES-256-ECB
-/// - Key size: 32 bytes (256 bits)
-/// - Sample size: 16 bytes (128 bits)
-/// - Mask size: 5 bytes (first 5 bytes of AES output)
-///
-/// # Algorithm
-///
-/// Header protection uses AES-ECB to generate a mask:
-/// ```text
-/// mask = AES-ECB(header_protection_key, sample)[0..5]
-/// ```
-/// The mask is XORed with packet number and first byte of header.
-///
-/// # Security
-///
-/// Header protection is not encryption - it only obfuscates packet metadata:
-/// - Protects packet number from passive observers
-/// - Prevents correlation of packets in a connection
-/// - Does NOT provide confidentiality (packets are separately encrypted)
-/// - Uses ECB mode safely (each sample is unique and random)
-/// - Provides stronger key security than AES-128 variant
-///
-/// # Usage Context
-///
-/// Used exclusively in QUIC protocol with AES-256-GCM cipher suites:
-/// - Required by RFC 9001 for QUIC-TLS integration
-/// - Applied after packet payload encryption
-/// - Commonly paired with AES-256-GCM for payload encryption
-///
-/// # Standards
-///
-/// - RFC 9001: Using TLS to Secure QUIC (Section 5.4: Header Protection)
-/// - RFC 9000: QUIC: A UDP-Based Multiplexed and Secure Transport
+/// AES-256 header protection implementation.
 struct HeaderProtectionAes256 {
     inner: hpcrypt_kdf::HeaderProtectionAes256,
 }
@@ -167,46 +98,7 @@ impl HeaderProtection for HeaderProtectionAes256 {
     }
 }
 
-/// ChaCha20 header protection for QUIC packets.
-///
-/// Provides header protection using ChaCha20 stream cipher for QUIC packet headers.
-/// - Algorithm: ChaCha20
-/// - Key size: 32 bytes (256 bits)
-/// - Sample size: 16 bytes (used as counter || nonce)
-/// - Mask size: 5 bytes (first 5 bytes of ChaCha20 output)
-///
-/// # Algorithm
-///
-/// Header protection uses ChaCha20 to generate a mask:
-/// ```text
-/// counter = sample[0..4] (little-endian)
-/// nonce = sample[4..16]
-/// mask = ChaCha20(key, counter, nonce)[0..5]
-/// ```
-/// The mask is XORed with packet number and first byte of header.
-///
-/// # Security
-///
-/// Header protection is not encryption - it only obfuscates packet metadata:
-/// - Protects packet number from passive observers
-/// - Prevents correlation of packets in a connection
-/// - Does NOT provide confidentiality (packets are separately encrypted)
-/// - ChaCha20 provides constant-time operation (resistant to timing attacks)
-/// - Performs well on platforms without AES hardware acceleration
-///
-/// # Usage Context
-///
-/// Used exclusively in QUIC protocol with ChaCha20-Poly1305 cipher suites:
-/// - Required by RFC 9001 for QUIC-TLS integration
-/// - Applied after packet payload encryption
-/// - Commonly paired with ChaCha20-Poly1305 for payload encryption
-/// - Preferred on mobile devices and embedded systems
-///
-/// # Standards
-///
-/// - RFC 9001: Using TLS to Secure QUIC (Section 5.4: Header Protection)
-/// - RFC 9000: QUIC: A UDP-Based Multiplexed and Secure Transport
-/// - RFC 8439: ChaCha20 and Poly1305 for IETF Protocols
+/// ChaCha20 header protection implementation.
 struct HeaderProtectionChaCha20 {
     inner: hpcrypt_kdf::HeaderProtectionChaCha20,
 }
