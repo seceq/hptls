@@ -193,24 +193,57 @@ impl RecordProtection {
         provider: &dyn CryptoProvider,
         ciphertext: &TlsCiphertext,
     ) -> Result<TlsPlaintext> {
+        eprintln!(
+            "[DEBUG] Decrypt - sequence: {}, ciphertext len: {}",
+            self.sequence_number,
+            ciphertext.encrypted_record.len()
+        );
         // Step 1: Compute per-record nonce
         let nonce = self.compute_nonce();
-
+        eprintln!(
+            "[DEBUG] Decrypt - nonce ({} bytes): {:02x?}",
+            nonce.len(),
+            &nonce
+        );
+        eprintln!(
+            "[DEBUG] Decrypt - iv ({} bytes): {:02x?}",
+            self.iv.len(),
+            &self.iv[..]
+        );
+        eprintln!(
+            "[DEBUG] Decrypt - key ({} bytes): {:02x?}",
+            self.key.len(),
+            &self.key[..]
+        );
         // Step 2: Build additional_data
         let additional_data = self.build_additional_data(ciphertext.encrypted_record.len())?;
-
+        eprintln!("[DEBUG] Decrypt - AAD: {:02x?}", &additional_data);
         // Step 3: Decrypt using AEAD
         let aead_algorithm = self.cipher_suite.aead_algorithm();
         let aead = provider.aead(aead_algorithm)?;
-
         // Decrypt using open()
+        eprintln!(
+            "[DEBUG] Calling aead.open() with ciphertext ({} bytes)",
+            ciphertext.encrypted_record.len()
+        );
+        eprintln!(
+            "[DEBUG] First 20 bytes of ciphertext: {:02x?}",
+            &ciphertext.encrypted_record[..ciphertext.encrypted_record.len().min(20)]
+        );
         let buffer = aead.open(
             &self.key,
             &nonce,
             &additional_data,
             &ciphertext.encrypted_record,
         )?;
-
+        eprintln!(
+            "[DEBUG] aead.open() succeeded, got buffer ({} bytes)",
+            buffer.len()
+        );
+        eprintln!(
+            "[DEBUG] First 20 bytes of decrypted buffer: {:02x?}",
+            &buffer[..buffer.len().min(20)]
+        );
         // Step 4: Extract content type (last non-zero byte)
         // TLSInnerPlaintext = content || content_type || zeros*
         let mut content_type_pos = buffer.len();
@@ -221,7 +254,12 @@ impl RecordProtection {
             return Err(Error::DecryptionFailed);
         }
         let content_type_byte = buffer[content_type_pos - 1];
-
+        eprintln!("[DEBUG] Decrypted content_type_byte: {} (0x{:02x}), buffer len: {}, content_type_pos: {}",
+            content_type_byte, content_type_byte, buffer.len(), content_type_pos);
+        eprintln!(
+            "[DEBUG] Last 10 bytes of buffer: {:?}",
+            &buffer[buffer.len().saturating_sub(10)..]
+        );
         let content_type = ContentType::from_u8(content_type_byte).ok_or_else(|| {
             Error::InvalidMessage(format!(
                 "Invalid content type in decrypted record: {} (0x{:02x})",
