@@ -130,6 +130,12 @@ pub struct ServerHandshake {
     early_data: Option<EarlyDataContext>,
     /// Anti-replay cache for 0-RTT protection
     anti_replay_cache: AntiReplayCache,
+    /// ECH configuration list (if ECH is supported)
+    ech_config_list: Option<crate::ech::EchConfigList>,
+    /// ECH secret keys (config_id -> secret_key)
+    ech_secret_keys: HashMap<[u8; 8], Zeroizing<Vec<u8>>>,
+    /// Whether ECH was attempted but decryption failed (triggers retry_configs)
+    ech_decryption_failed: bool,
 }
 impl ServerHandshake {
     /// Create a new server handshake state machine.
@@ -175,6 +181,9 @@ impl ServerHandshake {
             ticket_encryptor,
             early_data: None,
             anti_replay_cache,
+            ech_config_list: None,
+            ech_secret_keys: HashMap::new(),
+            ech_decryption_failed: false,
         }
     }
 
@@ -203,6 +212,23 @@ impl ServerHandshake {
     /// ```
     pub fn set_supported_groups(&mut self, groups: Vec<KeyExchangeAlgorithm>) {
         self.supported_groups = groups;
+    }
+
+    /// Set ECH configuration for the server.
+    ///
+    /// Enables the server to accept and decrypt ECH-encrypted ClientHello messages.
+    ///
+    /// # Arguments
+    ///
+    /// * `config_list` - List of ECH configurations
+    /// * `secret_keys` - Map of config IDs to their corresponding secret keys
+    pub fn set_ech_config(
+        &mut self,
+        config_list: crate::ech::EchConfigList,
+        secret_keys: HashMap<[u8; 8], Zeroizing<Vec<u8>>>,
+    ) {
+        self.ech_config_list = Some(config_list);
+        self.ech_secret_keys = secret_keys;
     }
 
     /// Get the negotiated cipher suite.
@@ -253,6 +279,25 @@ impl ServerHandshake {
             ServerState::Connected => 100,
             ServerState::Closing | ServerState::Closed => 100,
             ServerState::Failed => 0,
+        }
+    }
+
+    /// Manually update the transcript with a handshake message.
+    ///
+    /// This should be called with the complete handshake message (including 4-byte header):
+    /// - 1 byte: HandshakeType
+    /// - 3 bytes: length (24-bit big-endian)
+    /// - N bytes: message payload
+    /// After calling this, you should call the corresponding process_* method
+    /// with `skip_transcript_update` parameter (if available) to avoid double-updating.
+    pub fn update_transcript(&mut self, handshake_msg_bytes: &[u8]) -> Result<()> {
+        if let Some(ref mut transcript) = self.transcript {
+            transcript.update(handshake_msg_bytes);
+            Ok(())
+        } else {
+            Err(Error::InternalError(
+                "Transcript not initialized".to_string(),
+            ))
         }
     }
 
@@ -522,6 +567,69 @@ impl ServerHandshake {
         }
 
         let is_retry = self.state == ServerState::WaitClientHello;
+
+        // Try to decrypt ECH if present and configured
+        let actual_client_hello: std::borrow::Cow<'_, ClientHello> = if let Some(ech_data) =
+            client_hello.extensions.get_ech()?
+        {
+            if let Some(ref config_list) = self.ech_config_list {
+                let (cipher_suite, config_id, enc, payload) = ech_data;
+
+                // Find matching config
+                if let Some(config) = config_list.find_by_id(&config_id) {
+                    // Find corresponding secret key
+                    if let Some(secret_key) = self.ech_secret_keys.get(&config_id) {
+                        // Attempt to decrypt
+                        match crate::ech::decrypt_client_hello_inner(
+                            config,
+                            &cipher_suite,
+                            &enc,
+                            &payload,
+                            secret_key,
+                            provider,
+                        ) {
+                            Ok(decrypted_bytes) => {
+                                // Parse decrypted ClientHelloInner
+                                match ClientHello::decode(&decrypted_bytes) {
+                                    Ok(inner_hello) => {
+                                        tracing::info!("ECH decryption successful");
+                                        self.ech_decryption_failed = false;
+                                        std::borrow::Cow::Owned(inner_hello)
+                                    }
+                                    Err(e) => {
+                                        tracing::warn!("ECH decryption succeeded but parsing failed: {:?}", e);
+                                        self.ech_decryption_failed = true;
+                                        std::borrow::Cow::Borrowed(client_hello)
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                tracing::warn!("ECH decryption failed: {:?}", e);
+                                self.ech_decryption_failed = true;
+                                std::borrow::Cow::Borrowed(client_hello)
+                            }
+                        }
+                    } else {
+                        tracing::warn!("ECH config_id {:?} found but no secret key", config_id);
+                        self.ech_decryption_failed = true;
+                        std::borrow::Cow::Borrowed(client_hello)
+                    }
+                } else {
+                    tracing::warn!("ECH config_id {:?} not found in config list", config_id);
+                    self.ech_decryption_failed = true;
+                    std::borrow::Cow::Borrowed(client_hello)
+                }
+            } else {
+                tracing::info!("ECH extension present but server has no ECH config");
+                self.ech_decryption_failed = true;
+                std::borrow::Cow::Borrowed(client_hello)
+            }
+        } else {
+            std::borrow::Cow::Borrowed(client_hello)
+        };
+
+        // Use the decrypted ClientHello (or original if no ECH/decryption failed)
+        let client_hello = &*actual_client_hello;
 
         // Store original ClientHello if this is the first one (for HRR transcript)
         if !is_retry {
@@ -943,10 +1051,10 @@ impl ServerHandshake {
         }]))?;
 
         // Cookie extension (optional)
-        // Note: Cookie extension support in TypedExtension is pending implementation
+        // TODO: Implement Cookie extension support in TypedExtension
         if let Some(_cookie_data) = cookie {
             tracing::warn!("Cookie extension requested but not yet implemented in TypedExtension");
-            // Future: extensions.add_typed(TypedExtension::Cookie(cookie_data))?;
+            // extensions.add_typed(TypedExtension::Cookie(cookie_data))?;
         }
 
         let hrr = HelloRetryRequest::new(cipher_suite, extensions);
@@ -977,8 +1085,9 @@ impl ServerHandshake {
     /// Generate ServerHello message.
     /// Must be called after `process_client_hello()`.
     /// * `provider` - Crypto provider for key derivation
+    /// * `override_legacy_version` - Optional version to use instead of TLS 1.2 (for DTLS)
     /// ServerHello message to send to the client.
-    pub fn generate_server_hello(&mut self, provider: &dyn CryptoProvider) -> Result<ServerHello> {
+    pub fn generate_server_hello(&mut self, provider: &dyn CryptoProvider, override_legacy_version: Option<ProtocolVersion>) -> Result<ServerHello> {
         if self.state != ServerState::Negotiate {
             return Err(Error::UnexpectedMessage(
                 "ServerHello can only be generated in Negotiate state".to_string(),
@@ -1015,7 +1124,7 @@ impl ServerHandshake {
         }
 
         let server_hello = ServerHello {
-            legacy_version: ProtocolVersion::Tls12, // Always 0x0303 for TLS 1.3
+            legacy_version: override_legacy_version.unwrap_or(ProtocolVersion::Tls12), // TLS 1.2 for TLS 1.3, or DTLS 1.2 for DTLS
             random: self.server_random,
             legacy_session_id_echo: self.session_id.clone(),
             cipher_suite,
@@ -1108,6 +1217,15 @@ impl ServerHandshake {
         if self.is_early_data_accepted() {
             extensions.add_early_data()?;
             tracing::info!("Adding early_data extension to EncryptedExtensions (0-RTT accepted)");
+        }
+
+        // Add ECH retry_configs if ECH decryption failed
+        if self.ech_decryption_failed {
+            if let Some(ref config_list) = self.ech_config_list {
+                let retry_configs = config_list.encode()?;
+                extensions.add_ech_retry_configs(retry_configs)?;
+                tracing::info!("Adding ECH retry_configs to EncryptedExtensions (ECH decryption failed)");
+            }
         }
 
         let encrypted_extensions = EncryptedExtensions { extensions };
@@ -1230,6 +1348,7 @@ impl ServerHandshake {
             .as_mut()
             .ok_or_else(|| Error::InternalError("Transcript not initialized".to_string()))?
             .current_hash(provider)?;
+
         // Build the data to sign per RFC 8446 Section 4.4.3:
         // String that consists of 64 spaces + "TLS 1.3, server CertificateVerify" + 0x00 + transcript_hash
         let mut message_to_sign = Vec::with_capacity(64 + 33 + 1 + transcript_hash.len());
@@ -1237,14 +1356,15 @@ impl ServerHandshake {
         message_to_sign.extend_from_slice(b"TLS 1.3, server CertificateVerify");
         message_to_sign.push(0x00);
         message_to_sign.extend_from_slice(&transcript_hash);
+
         // Determine signature algorithm from signing key format and length
         // Ed25519: 32 bytes (raw), ECDSA P-256: 32 bytes (raw), ECDSA P-384: 48 bytes (raw)
         // RSA: PKCS#8 DER format (starts with 0x30 0x82)
         let sig_algorithm = match _signing_key.len() {
             32 => {
                 // Could be Ed25519 or ECDSA P-256
-                // Try Ed25519 first (most common for 32-byte keys in TLS 1.3)
-                SignatureAlgorithm::Ed25519
+                // Default to ECDSA P-256 (most common in production TLS)
+                SignatureAlgorithm::EcdsaSecp256r1Sha256
             },
             48 => SignatureAlgorithm::EcdsaSecp384r1Sha384,
             _ => {
@@ -1270,10 +1390,9 @@ impl ServerHandshake {
             algorithm: sig_algorithm,
             signature,
         };
-        let encoded = cert_verify.encode()?;
-        if let Some(ref mut transcript) = self.transcript {
-            transcript.update(&encoded);
-        }
+        // NOTE: Do NOT update transcript here! The caller must update the transcript
+        // AFTER sending the CertificateVerify message, not during generation.
+        // The signature is computed over the transcript EXCLUDING the CertificateVerify itself.
         Ok(cert_verify)
     }
     /// Generate server Finished message.
@@ -1550,6 +1669,18 @@ impl ServerHandshake {
             .as_ref()
             .and_then(|ks| ks.get_client_application_traffic_secret())
     }
+
+    /// Get mutable reference to the key schedule.
+    ///
+    /// Used for post-handshake operations like KeyUpdate that need to derive
+    /// new application traffic secrets.
+    ///
+    /// # Returns
+    /// `Some(&mut KeySchedule)` if handshake has completed, `None` otherwise.
+    pub fn key_schedule_mut(&mut self) -> Option<&mut KeySchedule> {
+        self.key_schedule.as_mut()
+    }
+
     /// Send a KeyUpdate message.
     /// This initiates a key update by generating a new server application traffic secret
     /// and returning a KeyUpdate message to send to the client.
