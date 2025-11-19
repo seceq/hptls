@@ -11,14 +11,14 @@ HPTLS is a production-ready TLS library designed for security, performance, and 
 
 ### Key Features
 
-- ✅ **TLS 1.3** - Full RFC 8446 implementation with all cipher suites
-- ✅ **TLS 1.2** - Backward compatibility for legacy systems
-- ✅ **Post-Quantum Cryptography** - ML-KEM, ML-DSA, SLH-DSA (FIPS 203-205)
-- ✅ **Hybrid KEX** - X25519+ML-KEM-768 for quantum-resistant security
-- ✅ **FIPS 140-3** - FIPS-validated cryptographic implementations
-- ✅ **Zero-Copy I/O** - Optimized for high-throughput applications
-- ✅ **Memory Safe** - Written in pure Rust with no unsafe code in core logic
-- ✅ **Pluggable Crypto** - Abstract crypto provider interface
+- **TLS 1.3** - Full RFC 8446 implementation with all cipher suites
+- **TLS 1.2** - Backward compatibility for legacy systems
+- **Post-Quantum Cryptography** - ML-KEM, ML-DSA, SLH-DSA (FIPS 203-205)
+- **Hybrid KEX** - X25519+ML-KEM-768 for quantum-resistant security
+- **FIPS 140-3** - FIPS-validated cryptographic implementations
+- **Zero-Copy I/O** - Optimized for high-throughput applications
+- **Memory Safe** - Written in pure Rust with no unsafe code in core logic
+- **Pluggable Crypto** - Abstract crypto provider interface
 
 ## Project Structure
 
@@ -51,13 +51,16 @@ hptls/
 │   │   ├── pqc.rs             # Post-quantum crypto integration
 │   │   ├── ech.rs             # Encrypted Client Hello (ECH)
 │   │   ├── quic.rs            # QUIC integration
-│   │   ├── dtls.rs            # DTLS support
 │   │   ├── psk.rs             # Pre-shared keys
 │   │   ├── early_data.rs      # 0-RTT early data
 │   │   ├── ticket_encryption.rs  # Session ticket encryption
 │   │   ├── certificate_validator.rs  # Certificate validation
 │   │   ├── signature_verify.rs   # Signature verification
 │   │   ├── x509_simple.rs     # X.509 certificate parsing
+│   │   ├── dtls/              # DTLS 1.3 implementation
+│   │   │   ├── mod.rs         # DTLS core (epochs, replay window)
+│   │   │   ├── handshake.rs   # DTLS handshake with retransmission
+│   │   │   └── record_protection.rs  # DTLS record encryption
 │   │   ├── handshake/         # Handshake state machines
 │   │   │   ├── mod.rs
 │   │   │   ├── client.rs      # TLS 1.3 client handshake
@@ -111,7 +114,6 @@ hptls/
 ├── hptls-crypto-hpcrypt/       # FIPS crypto implementation (23 files)
 │   ├── src/
 │   │   ├── lib.rs             # Crypto provider implementation
-│   │   ├── fips_root.rs       # FIPS module initialization
 │   │   ├── aead.rs            # AES-GCM, ChaCha20-Poly1305
 │   │   ├── hash.rs            # SHA-256, SHA-384, SHA-512
 │   │   ├── hmac.rs            # HMAC implementations
@@ -127,12 +129,19 @@ hptls/
 │   │   ├── mldsa.rs           # ML-DSA-65, ML-DSA-87
 │   │   ├── slhdsa.rs          # SLH-DSA signatures
 │   │   ├── hybrid_kem.rs      # X25519+ML-KEM hybrid
-│   │   └── fips_kat/          # FIPS Known Answer Tests
-│   │       ├── mod.rs
-│   │       ├── kat_aes_gcm.rs
-│   │       ├── kat_hkdf.rs
-│   │       ├── kat_ecdsa.rs
-│   │       └── kat_rsa_pss.rs
+│   │   └── fips/              # FIPS 140-2/140-3 compliance
+│   │       ├── mod.rs         # FIPS module exports
+│   │       ├── state.rs       # State management and POST
+│   │       ├── csp.rs         # Critical security parameter tracking
+│   │       └── kat/           # Known Answer Tests
+│   │           ├── mod.rs
+│   │           ├── kat_aes_gcm.rs
+│   │           ├── kat_chacha20.rs
+│   │           ├── kat_ecdh.rs
+│   │           ├── kat_ecdsa.rs
+│   │           ├── kat_eddsa.rs
+│   │           ├── kat_hkdf.rs
+│   │           └── kat_rsa_pss.rs
 │   └── Cargo.toml
 │
 ├── examples/                   # Usage examples (5 files)
@@ -195,65 +204,65 @@ HPTLS uses a pluggable crypto provider architecture:
 
 | Feature | Status | RFC |
 |---------|--------|-----|
-| TLS 1.3 | ✅ Complete | RFC 8446 |
-| TLS 1.2 | ✅ Complete | RFC 5246 |
-| DTLS 1.3 | 🔄 Partial | RFC 9147 |
-| QUIC Integration | 🔄 Partial | RFC 9001 |
+| TLS 1.3 | Complete | RFC 8446 |
+| TLS 1.2 | Complete | RFC 5246 |
+| DTLS 1.3 | Partial | RFC 9147 |
+| QUIC Integration | Partial | RFC 9001 |
 
 ### Cipher Suites
 
 **TLS 1.3:**
-- ✅ TLS_AES_128_GCM_SHA256
-- ✅ TLS_AES_256_GCM_SHA384
-- ✅ TLS_CHACHA20_POLY1305_SHA256
+- TLS_AES_128_GCM_SHA256
+- TLS_AES_256_GCM_SHA384
+- TLS_CHACHA20_POLY1305_SHA256
 
 **TLS 1.2:**
-- ✅ TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
-- ✅ TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-- ✅ TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
-- ✅ TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-- ✅ TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
-- ✅ TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+- TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+- TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+- TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+- TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+- TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+- TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
 
 ### Key Exchange
 
 **Classical:**
-- ✅ X25519 (Curve25519)
-- ✅ secp256r1 (P-256)
-- ✅ secp384r1 (P-384)
+- X25519 (Curve25519)
+- secp256r1 (P-256)
+- secp384r1 (P-384)
 
 **Post-Quantum:**
-- ✅ ML-KEM-768 (FIPS 203)
-- ✅ ML-KEM-1024 (FIPS 203)
+- ML-KEM-768 (FIPS 203)
+- ML-KEM-1024 (FIPS 203)
 
 **Hybrid:**
-- ✅ X25519+ML-KEM-768 (Recommended)
-- ✅ P-256+ML-KEM-768
+- X25519+ML-KEM-768 (Recommended)
+- P-256+ML-KEM-768
 
 ### Signature Algorithms
 
 **Classical:**
-- ✅ ECDSA (P-256, P-384, P-521)
-- ✅ Ed25519 (EdDSA)
-- ✅ RSA-PSS (2048, 3072, 4096 bits)
+- ECDSA (P-256, P-384, P-521)
+- Ed25519 (EdDSA)
+- RSA-PSS (2048, 3072, 4096 bits)
 
 **Post-Quantum:**
-- ✅ ML-DSA-65 (FIPS 204)
-- ✅ ML-DSA-87 (FIPS 204)
-- ✅ SLH-DSA (FIPS 205)
+- ML-DSA-65 (FIPS 204)
+- ML-DSA-87 (FIPS 204)
+- SLH-DSA (FIPS 205)
 
 ### Extensions
 
-- ✅ Server Name Indication (SNI)
-- ✅ Application-Layer Protocol Negotiation (ALPN)
-- ✅ Supported Groups
-- ✅ Signature Algorithms
-- ✅ Key Share
-- ✅ Pre-Shared Key (PSK)
-- ✅ Early Data (0-RTT)
-- ✅ Session Tickets
-- ✅ Encrypted Client Hello (ECH) - Core cryptography complete
-- ✅ GREASE (RFC 8701)
+- Server Name Indication (SNI)
+- Application-Layer Protocol Negotiation (ALPN)
+- Supported Groups
+- Signature Algorithms
+- Key Share
+- Pre-Shared Key (PSK)
+- Early Data (0-RTT)
+- Session Tickets
+- Encrypted Client Hello (ECH) - Core cryptography complete
+- GREASE (RFC 8701)
 
 ## Quick Start
 
@@ -391,13 +400,13 @@ HPTLS is written in pure Rust, providing memory safety guarantees:
 ### Known Vulnerabilities
 
 HPTLS is designed to be immune to all known TLS attacks:
-- ❌ Heartbleed - No heartbeat extension
-- ❌ POODLE - No SSLv3 support
-- ❌ BEAST - TLS 1.1+ only
-- ❌ CRIME/BREACH - No compression
-- ❌ Lucky13 - Constant-time MAC verification
-- ❌ Logjam/FREAK - Strong crypto parameters only
-- ❌ ROBOT - Constant-time RSA operations
+- Heartbleed - No heartbeat extension
+- POODLE - No SSLv3 support
+- BEAST - TLS 1.1+ only
+- CRIME/BREACH - No compression
+- Lucky13 - Constant-time MAC verification
+- Logjam/FREAK - Strong crypto parameters only
+- ROBOT - Constant-time RSA operations
 
 ## Performance
 
@@ -496,12 +505,12 @@ Contributions are welcome! Please ensure:
 **Current Version**: 0.1.0 (Alpha)
 
 **Production Readiness**:
-- ✅ TLS 1.3 Client - Production ready
-- ✅ TLS 1.3 Server - Production ready
-- ✅ TLS 1.2 - Production ready
-- 🔄 Post-Quantum - Beta (standards finalized, implementations tested)
-- 🔄 DTLS - Alpha
-- 🔄 QUIC - Alpha
+- TLS 1.3 Client - Production ready
+- TLS 1.3 Server - Production ready
+- TLS 1.2 - Production ready
+- Post-Quantum - Beta (standards finalized, implementations tested)
+- DTLS - Alpha
+- QUIC - Alpha
 
 **OpenSSL Interoperability**: 100% (12/12 tests passing)
 
