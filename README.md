@@ -62,8 +62,8 @@ HPTLS uses a pluggable crypto provider architecture:
 |---------|--------|-----|
 | TLS 1.3 | Complete | RFC 8446 |
 | TLS 1.2 | Complete | RFC 5246 |
-| DTLS 1.3 | Partial | RFC 9147 |
-| QUIC Integration | Partial | RFC 9001 |
+| DTLS 1.3 | Complete | RFC 9147 |
+| QUIC Integration | Complete | RFC 9001 |
 
 ### Cipher Suites
 
