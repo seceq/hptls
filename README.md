@@ -369,7 +369,3 @@ Contributions are welcome! Please ensure:
 - QUIC - Alpha
 
 **OpenSSL Interoperability**: 100% (12/12 tests passing)
-
----
-
-For more information, see the full documentation in the parent repository: `/home/maamoun/hptls/docs/`
