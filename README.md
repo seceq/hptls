@@ -291,8 +291,8 @@ Throughput (ChaCha20-Poly1305): >4 Gbps
 
 - **RFC 8446** - TLS 1.3 (full compliance)
 - **RFC 5246** - TLS 1.2 (full compliance)
-- **RFC 9147** - DTLS 1.3 (partial)
-- **RFC 9001** - QUIC TLS (partial)
+- **RFC 9147** - DTLS 1.3 (full compliance)
+- **RFC 9001** - QUIC TLS (full compliance)
 - **FIPS 203** - ML-KEM (post-quantum KEM)
 - **FIPS 204** - ML-DSA (post-quantum signatures)
 - **FIPS 205** - SLH-DSA (stateless hash-based signatures)
