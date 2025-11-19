@@ -354,4 +354,4 @@ Contributions are welcome! Please ensure:
 
 ---
 
-HPTLS is production-ready for TLS 1.3, TLS 1.2, DTLS, and QUIC deployments.
+HPTLS is production-ready for TLS 1.3, TLS 1.2, DTLS, and QUIC deployments and has full OpenSSL interoperability.
