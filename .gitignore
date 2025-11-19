@@ -19,8 +19,6 @@ cobertura.xml
 *.profdata
 
 # Documentation build artifacts (never create dist/ - use docs/ only)
-/doc/
-/dist/
 
 # Benchmarks
 /criterion/
