@@ -326,9 +326,7 @@ RUST_LOG=debug cargo test
 ## Documentation
 
 - **API Documentation**: Run `cargo doc --open`
-- **ECH Implementation Guide**: See [ECH_IMPLEMENTATION.md](ECH_IMPLEMENTATION.md)
 - **Examples**: See `examples/` directory
-- **Architecture**: See parent repository's `docs/` directory
 
 ## License
 
