@@ -352,7 +352,6 @@ Contributions are welcome! Please ensure:
 ## Acknowledgments
 
 - **HPCrypt** - FIPS-validated cryptographic implementations
-- **Rustls** - Inspiration for API design
 - **BoringSSL** - Reference for protocol implementation
 - **IETF TLS Working Group** - Standards and specifications
 
