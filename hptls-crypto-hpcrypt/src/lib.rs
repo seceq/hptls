@@ -58,8 +58,7 @@ use hptls_crypto::{
 
 pub mod aead;
 pub mod der;
-pub mod fips_kat;
-mod fips_root;
+pub mod fips;
 pub mod hash;
 pub mod header_protection;
 pub mod hkdf;

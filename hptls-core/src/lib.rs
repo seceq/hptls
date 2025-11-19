@@ -69,8 +69,6 @@ pub mod cipher;
 pub mod connection_rate_tracker;
 pub mod cookie_manager;
 pub mod dtls;
-pub mod dtls_handshake;
-pub mod dtls_record_protection;
 pub mod early_data;
 pub mod ech;
 pub mod ech_helpers;

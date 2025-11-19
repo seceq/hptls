@@ -11,8 +11,7 @@
 //! - Record protection
 
 use hptls_core::cipher::CipherSuite;
-use hptls_core::dtls::{Epoch, SequenceNumber};
-use hptls_core::dtls_record_protection::DtlsRecordProtection;
+use hptls_core::dtls::{Epoch, SequenceNumber, DtlsRecordProtection};
 use hptls_core::handshake::{ClientHandshake, ClientState, ServerHandshake, ServerState};
 use hptls_core::protocol::ContentType;
 use hptls_crypto::CryptoProvider;
@@ -127,7 +126,7 @@ fn test_dtls_handshake_epoch_progression() {
     server_protection.set_write_epoch(Epoch(1));
     server_protection.set_read_epoch(Epoch(1));
 
-    println!("✅ Epoch 1 established - handshake messages now encrypted");
+    println!("Epoch 1 established - handshake messages now encrypted");
 
     // Step 6: Server sends EncryptedExtensions (encrypted with epoch 1)
     println!("Step 6: Server -> EncryptedExtensions (epoch 1)");
@@ -171,7 +170,7 @@ fn test_dtls_handshake_epoch_progression() {
 
     assert_eq!(client.state(), ClientState::WaitCertVerify);
 
-    println!("✅ Handshake messages successfully encrypted/decrypted with epoch 1");
+    println!("Handshake messages successfully encrypted/decrypted with epoch 1");
 
     // Step 8: Derive application traffic secrets
     println!("Step 8: Deriving application traffic secrets");
@@ -212,7 +211,7 @@ fn test_dtls_handshake_epoch_progression() {
     server_protection.set_write_epoch(Epoch::APPLICATION);
     server_protection.set_read_epoch(Epoch::APPLICATION);
 
-    println!("✅ Epoch 2 established - application data encryption ready");
+    println!("Epoch 2 established - application data encryption ready");
 
     // Step 10: Test bidirectional application data exchange
     println!("Step 10: Testing bidirectional application data exchange");
@@ -231,7 +230,7 @@ fn test_dtls_handshake_epoch_progression() {
 
     assert_eq!(server_received.content_type, ContentType::ApplicationData);
     assert_eq!(server_received.fragment, client_message);
-    println!("✅ Client -> Server: Message decrypted successfully");
+    println!("Client -> Server: Message decrypted successfully");
 
     // Server -> Client: "Hello from server"
     let server_message = b"Hello from server";
@@ -247,13 +246,13 @@ fn test_dtls_handshake_epoch_progression() {
 
     assert_eq!(client_received.content_type, ContentType::ApplicationData);
     assert_eq!(client_received.fragment, server_message);
-    println!("✅ Server -> Client: Message decrypted successfully");
+    println!("Server -> Client: Message decrypted successfully");
 
     println!("\n🎉 Full DTLS handshake test completed successfully!");
-    println!("   ✅ Epoch 0: ClientHello/ServerHello exchanged");
-    println!("   ✅ Epoch 1: Handshake messages encrypted");
-    println!("   ✅ Epoch 2: Application data encrypted");
-    println!("   ✅ Bidirectional keys working correctly");
+    println!("   Epoch 0: ClientHello/ServerHello exchanged");
+    println!("   Epoch 1: Handshake messages encrypted");
+    println!("   Epoch 2: Application data encrypted");
+    println!("   Bidirectional keys working correctly");
 }
 
 /// Test bidirectional key separation in DTLS.
@@ -310,7 +309,7 @@ fn test_dtls_bidirectional_keys() {
         .expect("Server decryption failed");
 
     assert_eq!(decrypted.fragment, message);
-    println!("✅ Client -> Server: Bidirectional keys work correctly");
+    println!("Client -> Server: Bidirectional keys work correctly");
 
     // Test 2: Server -> Client
     let message = b"Test message from server";
@@ -323,7 +322,7 @@ fn test_dtls_bidirectional_keys() {
         .expect("Client decryption failed");
 
     assert_eq!(decrypted.fragment, message);
-    println!("✅ Server -> Client: Bidirectional keys work correctly");
+    println!("Server -> Client: Bidirectional keys work correctly");
 
     // Test 3: Verify using wrong keys fails
     // Client tries to decrypt its own message (encrypted with client_secret)
@@ -335,7 +334,7 @@ fn test_dtls_bidirectional_keys() {
     // Client tries to decrypt (should fail - wrong key)
     let result = client_protection.decrypt(&provider, &client_ciphertext);
     assert!(result.is_err(), "Client shouldn't decrypt its own messages");
-    println!("✅ Key separation verified: client can't decrypt its own messages");
+    println!("Key separation verified: client can't decrypt its own messages");
 
     println!("\n🎉 Bidirectional key test passed!");
 }
@@ -399,7 +398,7 @@ fn test_dtls_multiple_epochs() {
     // Clean up old epochs
     protection.remove_old_epochs(Epoch(2));
 
-    println!("✅ Multiple epoch transitions successful");
+    println!("Multiple epoch transitions successful");
 }
 
 /// Test replay protection across epochs.
@@ -445,9 +444,9 @@ fn test_dtls_replay_protection_per_epoch() {
     // Note: Current implementation may not have replay detection fully wired
     // This test verifies the infrastructure is in place
     if replay_result.is_err() {
-        println!("✅ Replay protection detected duplicate sequence number");
+        println!("Replay protection detected duplicate sequence number");
     } else {
-        println!("⚠️  Replay protection not yet enforced (infrastructure ready)");
+        println!("Warning: Replay protection not yet enforced (infrastructure ready)");
     }
 
     // Send message with sequence number 2 (should work)
@@ -460,7 +459,7 @@ fn test_dtls_replay_protection_per_epoch() {
         .decrypt(&provider, &ct2)
         .expect("Failed to decrypt second message");
 
-    println!("✅ Sequence number management working correctly");
+    println!("Sequence number management working correctly");
 }
 
 /// Test large message fragmentation readiness.
@@ -499,7 +498,7 @@ fn test_dtls_message_sizes() {
         assert_eq!(decrypted.fragment, message);
     }
 
-    println!("✅ All message sizes encrypted/decrypted successfully");
+    println!("All message sizes encrypted/decrypted successfully");
 }
 
 /// Test DTLS cookie exchange with HelloRetryRequest.
@@ -511,7 +510,7 @@ fn test_dtls_message_sizes() {
 /// 4. Server verifies cookie and continues handshake
 #[test]
 fn test_dtls_cookie_exchange() {
-    use hptls_core::dtls_handshake::{DtlsServerHandshake};
+    use hptls_core::dtls::DtlsServerHandshake;
     use hptls_core::messages::{ClientHello, HelloRetryRequest};
     use hptls_core::extensions::Extensions;
     use hptls_core::extension_types::TypedExtension;
@@ -635,7 +634,7 @@ fn test_dtls_cookie_exchange() {
 
     assert!(!wrong_secret_valid, "Cookie with wrong secret should fail");
 
-    println!("✅ Cookie exchange flow completed successfully");
+    println!("Cookie exchange flow completed successfully");
     println!("   - Cookie generated: {} bytes", cookie.len());
     println!("   - Cookie verified: success");
     println!("   - Wrong cookie rejected: success");

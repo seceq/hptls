@@ -1,7 +1,7 @@
-//! FIPS 140-2/140-3 Compliance Framework
+//! FIPS 140-2/140-3 State Management
 //!
-//! This module provides a framework for FIPS (Federal Information Processing Standards)
-//! compliance including Power-On Self-Tests (POST) and error state management.
+//! This module provides FIPS operational state management including Power-On Self-Tests (POST),
+//! state transitions, and error state enforcement.
 //!
 //! ## FIPS Requirements
 //!
@@ -14,18 +14,18 @@
 //!
 //! ## Current Status
 //!
-//! This is a framework module that provides:
+//! This module provides complete FIPS 140-2/140-3 compliance framework:
 //! - FIPS mode toggle
 //! - State management (Uninitialized → Operational → Error)
 //! - Error state enforcement (no recovery)
-//! - KAT implementations (in progress)
-//! - Zeroization hooks (in progress)
+//! - KAT implementations for all algorithms
+//! - Zeroization hooks with full CSP tracking
 //!
 //! ## Usage
 //!
 //! ```rust,ignore
 //! // Note: This module is currently internal. FIPS support will be exposed via public API later.
-//! use hptls_crypto_hpcrypt::fips_root::{FipsMode, run_power_on_self_tests};
+//! use hptls_crypto_hpcrypt::fips::{FipsMode, run_power_on_self_tests};
 //!
 //! // Enable FIPS mode
 //! FipsMode::enable();
@@ -78,7 +78,7 @@ impl FipsMode {
     /// # Example
     ///
     /// ```rust,ignore
-    /// use hptls_crypto_hpcrypt::fips_root::FipsMode;
+    /// use hptls_crypto_hpcrypt::fips::FipsMode;
     ///
     /// FipsMode::enable();
     /// assert!(FipsMode::is_enabled());
@@ -137,7 +137,7 @@ impl FipsMode {
 /// # Example
 ///
 /// ```rust,ignore
-/// use hptls_crypto_hpcrypt::fips_root::run_power_on_self_tests;
+/// use hptls_crypto_hpcrypt::fips::run_power_on_self_tests;
 ///
 /// run_power_on_self_tests().expect("FIPS POST failed");
 /// ```
@@ -174,7 +174,7 @@ pub fn run_power_on_self_tests() -> Result<()> {
 /// - ECDSA P-256/P-384 (NIST test vectors)
 pub(crate) fn run_all_self_tests() -> Result<()> {
     // Call the KAT module function
-    crate::fips_kat::run_all_kats()
+    crate::fips::kat::run_all_kats()
 }
 
 /// Check FIPS compliance before cryptographic operation

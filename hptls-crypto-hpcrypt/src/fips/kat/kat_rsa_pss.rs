@@ -29,8 +29,8 @@ fn kat_rsa_pss_sha256_verify() -> Result<()> {
     let message = b"FIPS 140-2 RSA-PSS-SHA256 Known Answer Test";
 
     // 2048-bit RSA key pair in DER format
-    const PRIVATE_KEY: &[u8] = include_bytes!("../../tests/data/rsa_private_pkcs8.der");
-    const PUBLIC_KEY: &[u8] = include_bytes!("../../tests/data/rsa_public_spki.der");
+    const PRIVATE_KEY: &[u8] = include_bytes!("../../../tests/data/rsa_private_pkcs8.der");
+    const PUBLIC_KEY: &[u8] = include_bytes!("../../../tests/data/rsa_public_spki.der");
 
     // Generate a signature using the private key
     let signature = sig_impl.sign(PRIVATE_KEY, message)?;
@@ -55,8 +55,8 @@ fn kat_rsa_pss_sha384_verify() -> Result<()> {
     let sig_impl = provider.signature(SignatureAlgorithm::RsaPssRsaeSha384)?;
 
     let message = b"FIPS 140-2 RSA-PSS-SHA384 Known Answer Test";
-    const PRIVATE_KEY: &[u8] = include_bytes!("../../tests/data/rsa_private_pkcs8.der");
-    const PUBLIC_KEY: &[u8] = include_bytes!("../../tests/data/rsa_public_spki.der");
+    const PRIVATE_KEY: &[u8] = include_bytes!("../../../tests/data/rsa_private_pkcs8.der");
+    const PUBLIC_KEY: &[u8] = include_bytes!("../../../tests/data/rsa_public_spki.der");
 
     // Sign-then-verify to validate RSA-PSS-SHA384
     let signature = sig_impl.sign(PRIVATE_KEY, message)?;
@@ -79,8 +79,8 @@ fn kat_rsa_pss_sha512_verify() -> Result<()> {
     let sig_impl = provider.signature(SignatureAlgorithm::RsaPssRsaeSha512)?;
 
     let message = b"FIPS 140-2 RSA-PSS-SHA512 Known Answer Test";
-    const PRIVATE_KEY: &[u8] = include_bytes!("../../tests/data/rsa_private_pkcs8.der");
-    const PUBLIC_KEY: &[u8] = include_bytes!("../../tests/data/rsa_public_spki.der");
+    const PRIVATE_KEY: &[u8] = include_bytes!("../../../tests/data/rsa_private_pkcs8.der");
+    const PUBLIC_KEY: &[u8] = include_bytes!("../../../tests/data/rsa_public_spki.der");
 
     // Sign-then-verify to validate RSA-PSS-SHA512
     let signature = sig_impl.sign(PRIVATE_KEY, message)?;

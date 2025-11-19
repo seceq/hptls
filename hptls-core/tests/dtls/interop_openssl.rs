@@ -106,10 +106,10 @@ fn test_openssl_version_check() {
 
     match check_openssl_version() {
         Ok(true) => {
-            println!("✅ OpenSSL version supports DTLS 1.3");
+            println!("OpenSSL version supports DTLS 1.3");
         }
         Ok(false) => {
-            println!("⚠️ OpenSSL version does NOT support DTLS 1.3");
+            println!("Warning: OpenSSL version does NOT support DTLS 1.3");
             println!("   Required: OpenSSL 3.2.0+");
             println!("   Installed: {}", version);
             println!("\n   Interoperability tests will be SKIPPED.");
@@ -223,12 +223,12 @@ fn test_document_openssl_version() {
 
     match check_openssl_version() {
         Ok(true) => {
-            println!("Status: ✅ DTLS 1.3 supported");
+            println!("Status: DTLS 1.3 supported");
             println!("\nInteroperability tests can be run with:");
             println!("  cargo test --test dtls_interop_openssl -- --ignored");
         }
         Ok(false) => {
-            println!("Status: ⚠️ DTLS 1.3 NOT supported");
+            println!("Status: Warning: DTLS 1.3 NOT supported");
             println!("\nRequired: OpenSSL 3.2.0+");
             println!("Installed: {}", version);
             println!("\nTo enable interoperability testing:");
@@ -237,7 +237,7 @@ fn test_document_openssl_version() {
             println!("\nCurrent Status: Interoperability tests SKIPPED");
         }
         Err(e) => {
-            println!("Status: ❌ Error checking version: {}", e);
+            println!("Status: Error: Error checking version: {}", e);
         }
     }
     println!("===============================================\n");

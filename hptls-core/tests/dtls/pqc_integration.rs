@@ -57,7 +57,7 @@ fn test_dtls_handshake_with_pqc_provider() {
     assert_eq!(client_hs_secret.len(), 32);
     assert_ne!(server_hs_secret, client_hs_secret);
 
-    println!("✅ DTLS handshake with PQC provider successful");
+    println!("DTLS handshake with PQC provider successful");
 }
 
 /// Test all hybrid KEX algorithms are available and can generate keys.
@@ -82,7 +82,7 @@ fn test_all_hybrid_kex_algorithms_available() {
 
         assert_eq!(pk.as_bytes().len(), expected_size, "{} public key size mismatch", name);
 
-        println!("  ✅ {}: available, {}-byte keys", name, expected_size);
+        println!("  {}: available, {}-byte keys", name, expected_size);
     }
 }
 
@@ -106,7 +106,7 @@ fn test_all_mlkem_algorithms_available() {
 
         assert_eq!(pk.as_bytes().len(), expected_size, "{} public key size mismatch", name);
 
-        println!("  ✅ {}: available, {}-byte keys", name, expected_size);
+        println!("  {}: available, {}-byte keys", name, expected_size);
     }
 }
 
@@ -135,7 +135,7 @@ fn test_all_mldsa_algorithms() {
         sig.verify(vk.as_bytes(), message, &signature)
             .unwrap_or_else(|_| panic!("{} verification failed", name));
 
-        println!("  ✅ {}: sign/verify successful", name);
+        println!("  {}: sign/verify successful", name);
     }
 }
 
@@ -164,7 +164,7 @@ fn test_all_slhdsa_sha2_algorithms() {
         sig.verify(vk.as_bytes(), message, &signature)
             .unwrap_or_else(|_| panic!("{} verification failed", name));
 
-        println!("  ✅ {}: sign/verify successful", name);
+        println!("  {}: sign/verify successful", name);
     }
 }
 
@@ -192,7 +192,7 @@ fn test_slhdsa_shake_algorithms_new() {
         sig.verify(vk.as_bytes(), message, &signature)
             .unwrap_or_else(|_| panic!("{} verification failed", name));
 
-        println!("  ✅ {}: sign/verify successful (NEWLY ADDED)", name);
+        println!("  {}: sign/verify successful (NEWLY ADDED)", name);
     }
 }
 
@@ -216,7 +216,7 @@ fn test_comprehensive_pqc_integration() {
         let kex = provider.key_exchange(algo).unwrap();
         let (_sk, pk) = kex.generate_keypair().unwrap();
         assert_eq!(pk.as_bytes().len(), pub_size);
-        println!("  ✅ {} - {}-byte keys ✨ NEW", name, pub_size);
+        println!("  {} - {}-byte keys", name, pub_size);
     }
 
     // Test 2 new SHAKE SLH-DSA variants
@@ -232,10 +232,10 @@ fn test_comprehensive_pqc_integration() {
         let msg = b"PQC integration test";
         let signature = sig.sign(sk.as_bytes(), msg).unwrap();
         sig.verify(vk.as_bytes(), msg, &signature).unwrap();
-        println!("  ✅ {} - sign/verify ✨ NEW", name);
+        println!("  {} - sign/verify", name);
     }
 
-    println!("\n✨ All NEW PQC Algorithms Integrated Successfully!");
+    println!("\nAll new PQC Algorithms Integrated Successfully!");
     println!("   - 3 NEW hybrid KEX algorithms (X448, P-384, P-521 + ML-KEM-1024)");
     println!("   - 2 NEW SHAKE signature variants (128f, 256f)");
     println!("   - 🎯 Ready for production DTLS 1.3 deployment!");

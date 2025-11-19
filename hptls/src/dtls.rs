@@ -64,9 +64,11 @@
 
 use hptls_core::alert::Alert;
 use hptls_core::cipher::CipherSuite;
-use hptls_core::dtls::{DtlsRecordHeader, DtlsState, Epoch, DTLS_13_VERSION};
-use hptls_core::dtls_handshake::{DtlsClientHandshake, DtlsServerHandshake};
-use hptls_core::dtls_record_protection::{DtlsCiphertext, DtlsRecordProtection};
+use hptls_core::dtls::{
+    DtlsRecordHeader, DtlsState, Epoch, DTLS_13_VERSION,
+    DtlsClientHandshake, DtlsServerHandshake,
+    record_protection::{DtlsCiphertext, DtlsRecordProtection},
+};
 use hptls_core::error::{Error, Result};
 use hptls_core::messages::key_update::{KeyUpdate, KeyUpdateRequest};
 use hptls_core::extension_types::TypedExtension;
@@ -274,7 +276,7 @@ impl DtlsClient {
 
 
         // Convert DTLS handshake message (12-byte header) to TLS format (4-byte header)
-        let tls_handshake_bytes = hptls_core::dtls_handshake::decode_dtls_handshake_message(dtls_handshake_bytes)?;
+        let tls_handshake_bytes = hptls_core::dtls::handshake::decode_dtls_handshake_message(dtls_handshake_bytes)?;
 
         // Extract payload from TLS message (skip 4-byte header)
         if tls_handshake_bytes.len() < 4 {
@@ -320,7 +322,7 @@ impl DtlsClient {
 
                     let server_hello_record2 = DtlsCiphertext::decode(&receive_buffer)?;
                     let dtls_handshake_bytes2 = &server_hello_record2.encrypted_record;
-                    let tls_handshake_bytes2 = hptls_core::dtls_handshake::decode_dtls_handshake_message(dtls_handshake_bytes2)?;
+                    let tls_handshake_bytes2 = hptls_core::dtls::handshake::decode_dtls_handshake_message(dtls_handshake_bytes2)?;
                     // Skip the 4-byte TLS handshake header (msg_type + 3-byte length)
                     ServerHello::decode(&tls_handshake_bytes2[4..])?
                 } else {
@@ -375,7 +377,7 @@ impl DtlsClient {
         let enc_ext_record = DtlsCiphertext::decode(&receive_buffer[..n])?;
         let enc_ext_plaintext = self.record_protection.decrypt(&self.provider, &enc_ext_record)?;
         // Convert DTLS handshake message (12-byte header) to TLS format (4-byte header)
-        let tls_handshake_bytes = hptls_core::dtls_handshake::decode_dtls_handshake_message(&enc_ext_plaintext.fragment)?;
+        let tls_handshake_bytes = hptls_core::dtls::handshake::decode_dtls_handshake_message(&enc_ext_plaintext.fragment)?;
         // Skip 4-byte TLS handshake header (msg_type + 3-byte length)
         if tls_handshake_bytes.len() < 4 {
             return Err(Error::InvalidMessage("EncryptedExtensions message too short".into()));
@@ -389,7 +391,7 @@ impl DtlsClient {
         let cert_record = DtlsCiphertext::decode(&receive_buffer[..n])?;
         let cert_plaintext = self.record_protection.decrypt(&self.provider, &cert_record)?;
         // Convert DTLS handshake message (12-byte header) to TLS format (4-byte header)
-        let tls_handshake_bytes = hptls_core::dtls_handshake::decode_dtls_handshake_message(&cert_plaintext.fragment)?;
+        let tls_handshake_bytes = hptls_core::dtls::handshake::decode_dtls_handshake_message(&cert_plaintext.fragment)?;
         // Skip 4-byte TLS handshake header (msg_type + 3-byte length)
         if tls_handshake_bytes.len() < 4 {
             return Err(Error::InvalidMessage("Certificate message too short".into()));
@@ -403,7 +405,7 @@ impl DtlsClient {
         let cert_verify_record = DtlsCiphertext::decode(&receive_buffer[..n])?;
         let cert_verify_plaintext = self.record_protection.decrypt(&self.provider, &cert_verify_record)?;
         // Convert DTLS handshake message (12-byte header) to TLS format (4-byte header)
-        let tls_handshake_bytes = hptls_core::dtls_handshake::decode_dtls_handshake_message(&cert_verify_plaintext.fragment)?;
+        let tls_handshake_bytes = hptls_core::dtls::handshake::decode_dtls_handshake_message(&cert_verify_plaintext.fragment)?;
         // Skip 4-byte TLS handshake header (msg_type + 3-byte length)
         if tls_handshake_bytes.len() < 4 {
             return Err(Error::InvalidMessage("CertificateVerify message too short".into()));
@@ -420,7 +422,7 @@ impl DtlsClient {
         let finished_record = DtlsCiphertext::decode(&receive_buffer[..n])?;
         let finished_plaintext = self.record_protection.decrypt(&self.provider, &finished_record)?;
         // Convert DTLS handshake message (12-byte header) to TLS format (4-byte header)
-        let tls_handshake_bytes = hptls_core::dtls_handshake::decode_dtls_handshake_message(&finished_plaintext.fragment)?;
+        let tls_handshake_bytes = hptls_core::dtls::handshake::decode_dtls_handshake_message(&finished_plaintext.fragment)?;
         // Skip 4-byte TLS handshake header (msg_type + 3-byte length)
         if tls_handshake_bytes.len() < 4 {
             return Err(Error::InvalidMessage("Finished message too short".into()));
@@ -1674,7 +1676,7 @@ impl DtlsServer {
         let client_finished_plaintext = self.record_protection.decrypt(&self.provider, &client_finished_record)?;
 
         // Convert DTLS handshake message (12-byte header) to TLS format (4-byte header)
-        let tls_handshake_bytes = hptls_core::dtls_handshake::decode_dtls_handshake_message(&client_finished_plaintext.fragment)?;
+        let tls_handshake_bytes = hptls_core::dtls::handshake::decode_dtls_handshake_message(&client_finished_plaintext.fragment)?;
         // Skip 4-byte TLS handshake header (msg_type + 3-byte length)
         if tls_handshake_bytes.len() < 4 {
             return Err(Error::InvalidMessage("Client Finished message too short".into()));

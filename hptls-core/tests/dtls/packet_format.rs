@@ -40,9 +40,9 @@ fn test_dtls_record_header_format() {
     let dtls12 = ProtocolVersion::Dtls12;
     let dtls13 = ProtocolVersion::Dtls13;
 
-    println!("✅ ProtocolVersion::Dtls12 supported");
-    println!("✅ ProtocolVersion::Dtls13 supported");
-    println!("✅ DTLS 1.3 uses DTLS 1.2 legacy_record_version (RFC 9147)");
+    println!("ProtocolVersion::Dtls12 supported");
+    println!("ProtocolVersion::Dtls13 supported");
+    println!("DTLS 1.3 uses DTLS 1.2 legacy_record_version (RFC 9147)");
 }
 
 #[test]
@@ -62,10 +62,10 @@ fn test_epoch_encoding() {
     assert_eq!(epoch2.0, 2, "Application data epoch must be 2");
     assert_eq!(epoch_max.0, 65535, "Max epoch must be 65535");
 
-    println!("✅ Epoch 0 (initial):          {:04X} ({} bytes)", epoch0.0, 2);
-    println!("✅ Epoch 1 (handshake):        {:04X} ({} bytes)", epoch1.0, 2);
-    println!("✅ Epoch 2 (application data): {:04X} ({} bytes)", epoch2.0, 2);
-    println!("✅ Epoch max (65535):          {:04X} ({} bytes)", epoch_max.0, 2);
+    println!("Epoch 0 (initial):          {:04X} ({} bytes)", epoch0.0, 2);
+    println!("Epoch 1 (handshake):        {:04X} ({} bytes)", epoch1.0, 2);
+    println!("Epoch 2 (application data): {:04X} ({} bytes)", epoch2.0, 2);
+    println!("Epoch max (65535):          {:04X} ({} bytes)", epoch_max.0, 2);
 }
 
 #[test]
@@ -85,9 +85,9 @@ fn test_sequence_number_format() {
     assert_eq!(seq_min, 0, "Min sequence number is 0");
     assert_eq!(seq_max, 281_474_976_710_655, "Max sequence number");
 
-    println!("✅ Min sequence: {} (0x{:012X})", seq_min, seq_min);
-    println!("✅ Max sequence: {} (0x{:012X})", seq_max, seq_max);
-    println!("✅ Example:      {} (0x{:012X})", seq_example & seq_max, seq_example & seq_max);
+    println!("Min sequence: {} (0x{:012X})", seq_min, seq_min);
+    println!("Max sequence: {} (0x{:012X})", seq_max, seq_max);
+    println!("Example:      {} (0x{:012X})", seq_example & seq_max, seq_example & seq_max);
     println!();
     println!("Encoding: Big-endian, 6 bytes");
 
@@ -122,11 +122,11 @@ fn test_content_type_values() {
     assert_eq!(handshake as u8, 22, "Handshake = 22");
     assert_eq!(application_data as u8, 23, "ApplicationData = 23");
 
-    println!("✅ Invalid:           {} (0x{:02X})", invalid as u8, invalid as u8);
-    println!("✅ ChangeCipherSpec:  {} (0x{:02X})", ccs as u8, ccs as u8);
-    println!("✅ Alert:             {} (0x{:02X})", alert as u8, alert as u8);
-    println!("✅ Handshake:         {} (0x{:02X})", handshake as u8, handshake as u8);
-    println!("✅ ApplicationData:   {} (0x{:02X})", application_data as u8, application_data as u8);
+    println!("Invalid:           {} (0x{:02X})", invalid as u8, invalid as u8);
+    println!("ChangeCipherSpec:  {} (0x{:02X})", ccs as u8, ccs as u8);
+    println!("Alert:             {} (0x{:02X})", alert as u8, alert as u8);
+    println!("Handshake:         {} (0x{:02X})", handshake as u8, handshake as u8);
+    println!("ApplicationData:   {} (0x{:02X})", application_data as u8, application_data as u8);
 }
 
 #[test]
@@ -151,7 +151,7 @@ fn test_record_header_size() {
     println!("  -------------------------------");
     println!("  Total:                {} bytes", header_size);
     println!();
-    println!("✅ DTLS record header size = {} bytes (RFC compliant)", header_size);
+    println!("DTLS record header size = {} bytes (RFC compliant)", header_size);
 }
 
 #[test]
@@ -176,7 +176,7 @@ fn test_maximum_record_length() {
         "Max record must fit in allowed limits"
     );
 
-    println!("✅ Record size limits verified");
+    println!("Record size limits verified");
 }
 
 #[test]
@@ -197,7 +197,7 @@ fn test_dtls_version_progression() {
     println!("      in record headers (RFC 9147 Section 4)");
     println!();
 
-    println!("✅ DTLS version encoding verified");
+    println!("DTLS version encoding verified");
 }
 
 /// Generate a sample DTLS record header for manual inspection
@@ -259,7 +259,7 @@ fn test_sample_record_header_encoding() {
     println!();
 
     assert_eq!(header.len(), 13, "Header must be 13 bytes");
-    println!("✅ Sample record header generated successfully");
+    println!("Sample record header generated successfully");
 }
 
 #[test]
@@ -268,40 +268,40 @@ fn test_rfc_9147_compliance_checklist() {
     println!();
 
     println!("Record Layer (Section 4):");
-    println!("  ✅ ContentType values: 0, 20, 21, 22, 23");
-    println!("  ✅ ProtocolVersion: {{254, 253}} (DTLS 1.2)");
-    println!("  ✅ Epoch: 16-bit unsigned integer");
-    println!("  ✅ Sequence number: 48-bit unsigned integer");
-    println!("  ✅ Length: 16-bit unsigned integer");
-    println!("  ✅ Total header size: 13 bytes");
+    println!("  ContentType values: 0, 20, 21, 22, 23");
+    println!("  ProtocolVersion: {{254, 253}} (DTLS 1.2)");
+    println!("  Epoch: 16-bit unsigned integer");
+    println!("  Sequence number: 48-bit unsigned integer");
+    println!("  Length: 16-bit unsigned integer");
+    println!("  Total header size: 13 bytes");
     println!();
 
     println!("Epoch Management (Section 4.1.1):");
-    println!("  ✅ Epoch 0: Initial/unencrypted");
-    println!("  ✅ Epoch 1: Handshake messages (0-RTT/early data)");
-    println!("  ✅ Epoch 2+: Application data");
-    println!("  ✅ Epoch overflow protection: u16 wrap detection");
+    println!("  Epoch 0: Initial/unencrypted");
+    println!("  Epoch 1: Handshake messages (0-RTT/early data)");
+    println!("  Epoch 2+: Application data");
+    println!("  Epoch overflow protection: u16 wrap detection");
     println!();
 
     println!("Sequence Numbers (Section 4.1.2):");
-    println!("  ✅ 48-bit sequence numbers");
-    println!("  ✅ Per-epoch sequence numbering");
-    println!("  ✅ Range: 0 to 2^48 - 1");
-    println!("  ✅ Encoding: Big-endian");
+    println!("  48-bit sequence numbers");
+    println!("  Per-epoch sequence numbering");
+    println!("  Range: 0 to 2^48 - 1");
+    println!("  Encoding: Big-endian");
     println!();
 
     println!("Record Size (Section 4.1):");
-    println!("  ✅ Max plaintext: 16384 bytes (2^14)");
-    println!("  ✅ AEAD expansion: up to 255 bytes");
+    println!("  Max plaintext: 16384 bytes (2^14)");
+    println!("  AEAD expansion: up to 255 bytes");
     println!();
 
     println!("Replay Protection (Section 5.2):");
-    println!("  ✅ Sliding window (64 packets)");
-    println!("  ✅ Per-epoch replay detection");
+    println!("  Sliding window (64 packets)");
+    println!("  Per-epoch replay detection");
     println!();
 
     println!("==============================================");
-    println!("✅ All wire format requirements verified");
+    println!("All wire format requirements verified");
     println!("==============================================");
 }
 
@@ -315,26 +315,26 @@ fn test_dtls_packet_format_summary() {
     println!("\n📋 VALIDATION RESULTS:\n");
 
     // Run all validations
-    println!("1. Record Header Format .......................... ✅ PASS");
-    println!("2. ContentType Values ............................ ✅ PASS");
-    println!("3. ProtocolVersion Encoding ...................... ✅ PASS");
-    println!("4. Epoch Encoding (16-bit) ....................... ✅ PASS");
-    println!("5. Sequence Number Format (48-bit) ............... ✅ PASS");
-    println!("6. Header Size (13 bytes) ........................ ✅ PASS");
-    println!("7. Maximum Record Length ......................... ✅ PASS");
-    println!("8. Version Progression ........................... ✅ PASS");
+    println!("1. Record Header Format .......................... PASS");
+    println!("2. ContentType Values ............................ PASS");
+    println!("3. ProtocolVersion Encoding ...................... PASS");
+    println!("4. Epoch Encoding (16-bit) ....................... PASS");
+    println!("5. Sequence Number Format (48-bit) ............... PASS");
+    println!("6. Header Size (13 bytes) ........................ PASS");
+    println!("7. Maximum Record Length ......................... PASS");
+    println!("8. Version Progression ........................... PASS");
 
     println!("\n📊 SUMMARY:\n");
     println!("  Total Checks: 8");
     println!("  Passed:       8");
     println!("  Failed:       0");
-    println!("  Status:       ✅ ALL PASS");
+    println!("  Status:       ALL PASS");
 
     println!("\n📖 RFC 9147 COMPLIANCE:\n");
-    println!("  ✅ Section 4.1   - DTLS Record Layer");
-    println!("  ✅ Section 4.1.1 - Epoch Management");
-    println!("  ✅ Section 4.1.2 - Sequence Numbers");
-    println!("  ✅ Section 5.2   - Replay Detection");
+    println!("  Section 4.1   - DTLS Record Layer");
+    println!("  Section 4.1.1 - Epoch Management");
+    println!("  Section 4.1.2 - Sequence Numbers");
+    println!("  Section 5.2   - Replay Detection");
 
     println!("\n🎯 CONCLUSION:\n");
     println!("  HPTLS DTLS packet format is RFC 9147 compliant.");

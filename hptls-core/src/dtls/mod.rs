@@ -39,6 +39,14 @@
 //!                       <------->  Application Data
 //! ```
 
+// Sub-modules
+pub mod handshake;
+pub mod record_protection;
+
+// Re-export key types from sub-modules
+pub use handshake::{DtlsClientHandshake, DtlsServerHandshake};
+pub use record_protection::DtlsRecordProtection;
+
 use crate::cipher::CipherSuite;
 use crate::error::{Error, Result};
 use std::collections::HashMap;

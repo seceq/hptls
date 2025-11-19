@@ -43,7 +43,43 @@ pub fn create_key_exchange(algorithm: KeyExchangeAlgorithm) -> Result<Box<dyn Ke
 
 /// X25519 key exchange implementation.
 #[derive(Debug)]
-struct X25519Kex;
+pub(crate) struct X25519Kex;
+
+impl X25519Kex {
+    /// Generate a public key from a private key
+    pub(crate) fn public_key(private_key: &[u8]) -> Result<Vec<u8>> {
+        if private_key.len() != 32 {
+            return Err(Error::CryptoError(format!(
+                "X25519 private key must be 32 bytes, got {}",
+                private_key.len()
+            )));
+        }
+        let private_array: [u8; 32] = private_key.try_into().unwrap();
+        let public_key_bytes = hpcrypt_curves::X25519::public_key(&private_array);
+        Ok(public_key_bytes.to_vec())
+    }
+
+    /// Compute shared secret
+    pub(crate) fn shared_secret(private_key: &[u8], peer_public_key: &[u8]) -> Result<Vec<u8>> {
+        if private_key.len() != 32 {
+            return Err(Error::CryptoError(format!(
+                "X25519 private key must be 32 bytes, got {}",
+                private_key.len()
+            )));
+        }
+        if peer_public_key.len() != 32 {
+            return Err(Error::CryptoError(format!(
+                "X25519 public key must be 32 bytes, got {}",
+                peer_public_key.len()
+            )));
+        }
+        let private_array: [u8; 32] = private_key.try_into().unwrap();
+        let public_array: [u8; 32] = peer_public_key.try_into().unwrap();
+        let shared_secret = hpcrypt_curves::X25519::shared_secret(&private_array, &public_array)
+            .map_err(|e| Error::CryptoError(format!("X25519 exchange failed: {}", e)))?;
+        Ok(shared_secret.to_vec())
+    }
+}
 
 impl KeyExchange for X25519Kex {
     fn generate_keypair(&self) -> Result<(PrivateKey, PublicKey)> {
@@ -92,7 +128,41 @@ impl KeyExchange for X25519Kex {
 
 /// ECDH P-256 key exchange implementation using hpcrypt-curves.
 #[derive(Debug)]
-struct EcdhP256;
+pub(crate) struct EcdhP256;
+
+impl EcdhP256 {
+    /// Generate a public key from a private key
+    pub(crate) fn public_key(private_key: &[u8]) -> Result<Vec<u8>> {
+        use hpcrypt_curves::p256::ecdh::P256Ecdh;
+
+        if private_key.len() != 32 {
+            return Err(Error::CryptoError(format!(
+                "P-256 private key must be 32 bytes, got {}",
+                private_key.len()
+            )));
+        }
+        let private_array: [u8; 32] = private_key.try_into().unwrap();
+        let public_key_bytes = P256Ecdh::public_key(&private_array)
+            .map_err(|e| Error::CryptoError(format!("P-256 public key generation failed: {}", e)))?;
+        Ok(public_key_bytes.to_vec())
+    }
+
+    /// Compute shared secret
+    pub(crate) fn shared_secret(private_key: &[u8], peer_public_key: &[u8]) -> Result<Vec<u8>> {
+        use hpcrypt_curves::p256::ecdh::P256Ecdh;
+
+        if private_key.len() != 32 {
+            return Err(Error::CryptoError(format!(
+                "P-256 private key must be 32 bytes, got {}",
+                private_key.len()
+            )));
+        }
+        let private_array: [u8; 32] = private_key.try_into().unwrap();
+        let shared_secret_bytes = P256Ecdh::shared_secret(&private_array, peer_public_key)
+            .map_err(|e| Error::CryptoError(format!("P-256 shared secret failed: {}", e)))?;
+        Ok(shared_secret_bytes.to_vec())
+    }
+}
 
 impl KeyExchange for EcdhP256 {
     fn generate_keypair(&self) -> Result<(PrivateKey, PublicKey)> {
@@ -142,7 +212,43 @@ impl KeyExchange for EcdhP256 {
 
 /// X448 key exchange implementation.
 #[derive(Debug)]
-struct X448Kex;
+pub(crate) struct X448Kex;
+
+impl X448Kex {
+    /// Generate a public key from a private key
+    pub(crate) fn public_key(private_key: &[u8]) -> Result<Vec<u8>> {
+        if private_key.len() != 56 {
+            return Err(Error::CryptoError(format!(
+                "X448 private key must be 56 bytes, got {}",
+                private_key.len()
+            )));
+        }
+        let private_array: [u8; 56] = private_key.try_into().unwrap();
+        let public_key_bytes = hpcrypt_curves::X448::public_key(&private_array);
+        Ok(public_key_bytes.to_vec())
+    }
+
+    /// Compute shared secret
+    pub(crate) fn shared_secret(private_key: &[u8], peer_public_key: &[u8]) -> Result<Vec<u8>> {
+        if private_key.len() != 56 {
+            return Err(Error::CryptoError(format!(
+                "X448 private key must be 56 bytes, got {}",
+                private_key.len()
+            )));
+        }
+        if peer_public_key.len() != 56 {
+            return Err(Error::CryptoError(format!(
+                "X448 public key must be 56 bytes, got {}",
+                peer_public_key.len()
+            )));
+        }
+        let private_array: [u8; 56] = private_key.try_into().unwrap();
+        let public_array: [u8; 56] = peer_public_key.try_into().unwrap();
+        let shared_secret = hpcrypt_curves::X448::shared_secret(&private_array, &public_array)
+            .map_err(|e| Error::CryptoError(format!("X448 exchange failed: {}", e)))?;
+        Ok(shared_secret.to_vec())
+    }
+}
 
 impl KeyExchange for X448Kex {
     fn generate_keypair(&self) -> Result<(PrivateKey, PublicKey)> {
@@ -191,7 +297,7 @@ impl KeyExchange for X448Kex {
 
 /// ECDH P-384 key exchange implementation.
 #[derive(Debug)]
-struct EcdhP384;
+pub(crate) struct EcdhP384;
 
 impl KeyExchange for EcdhP384 {
     fn generate_keypair(&self) -> Result<(PrivateKey, PublicKey)> {
@@ -278,7 +384,7 @@ impl KeyExchange for EcdhP384 {
 
 /// ECDH P-521 key exchange implementation.
 #[derive(Debug)]
-struct EcdhP521;
+pub(crate) struct EcdhP521;
 
 impl KeyExchange for EcdhP521 {
     fn generate_keypair(&self) -> Result<(PrivateKey, PublicKey)> {

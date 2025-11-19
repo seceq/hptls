@@ -18,6 +18,8 @@ hptls-crypto = { workspace = true }
 
 # Cryptography dependencies
 hpcrypt-kdf = { workspace = true }
+aes = "0.8"
+chacha20 = "0.9"
 
 # Essential dependencies
 bytes = { workspace = true }
