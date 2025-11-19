@@ -799,8 +799,8 @@ mod tests {
         let mut dtls_handshake = DtlsClientHandshake::new(tls_handshake);
 
         // Add messages to flight
-        dtls_handshake.add_message_to_flight(vec![1, 2, 3]);
-        dtls_handshake.add_message_to_flight(vec![4, 5, 6]);
+        dtls_handshake.add_message_to_flight(1, vec![1, 2, 3]);
+        dtls_handshake.add_message_to_flight(2, vec![4, 5, 6]);
 
         // Transmit flight
         let messages = dtls_handshake.transmit_flight().unwrap();

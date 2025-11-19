@@ -90,27 +90,49 @@ impl KeyExchange for X25519Kex {
     }
 }
 
-/// ECDH P-256 key exchange implementation.
-///
-/// Note: This is a placeholder implementation using low-level P-256 operations.
-/// hpcrypt provides P-256 point arithmetic, but we need to implement ECDH ourselves.
+/// ECDH P-256 key exchange implementation using hpcrypt-curves.
 #[derive(Debug)]
 struct EcdhP256;
 
 impl KeyExchange for EcdhP256 {
     fn generate_keypair(&self) -> Result<(PrivateKey, PublicKey)> {
-        // P-256 ECDH is not yet fully implemented
-        Err(Error::UnsupportedAlgorithm(
-            "P-256 ECDH temporarily unavailable - hpcrypt API incomplete".to_string(),
+        use hpcrypt_curves::p256::ecdh::P256Ecdh;
+
+        // Generate random private key (32 bytes for P-256)
+        let rng = HpcryptRandom;
+        let mut private_key_bytes = [0u8; 32];
+        rng.fill(&mut private_key_bytes)?;
+
+        // Derive public key using hpcrypt P256Ecdh
+        let public_key_bytes = P256Ecdh::public_key(&private_key_bytes)
+            .map_err(|e| Error::CryptoError(format!("P-256 public key generation failed: {}", e)))?;
+
+        Ok((
+            PrivateKey::from_bytes(private_key_bytes.to_vec()),
+            PublicKey::from_bytes(public_key_bytes.to_vec()),
         ))
     }
 
-    fn exchange(&self, _private_key: &PrivateKey, _peer_public_key: &[u8]) -> Result<SharedSecret> {
-        // P-256 ECDH is not yet fully implemented
-        // The hpcrypt-curves API for P-256 point serialization is incomplete
-        Err(Error::UnsupportedAlgorithm(
-            "P-256 ECDH temporarily unavailable - hpcrypt API incomplete".to_string(),
-        ))
+    fn exchange(&self, private_key: &PrivateKey, peer_public_key: &[u8]) -> Result<SharedSecret> {
+        use hpcrypt_curves::p256::ecdh::P256Ecdh;
+
+        // Validate private key length
+        if private_key.as_bytes().len() != 32 {
+            return Err(Error::InvalidKeySize {
+                expected: 32,
+                actual: private_key.as_bytes().len(),
+            });
+        }
+
+        // Convert private key to fixed-size array
+        let mut private_key_array = [0u8; 32];
+        private_key_array.copy_from_slice(private_key.as_bytes());
+
+        // Perform ECDH key exchange using hpcrypt
+        let shared_secret_bytes = P256Ecdh::shared_secret(&private_key_array, peer_public_key)
+            .map_err(|e| Error::CryptoError(format!("P-256 ECDH failed: {}", e)))?;
+
+        Ok(SharedSecret::from_bytes(shared_secret_bytes.to_vec()))
     }
 
     fn algorithm(&self) -> KeyExchangeAlgorithm {
@@ -390,12 +412,27 @@ mod tests {
     }
 
     #[test]
-    fn test_p256_placeholder() {
-        // P-256 ECDH is temporarily unavailable due to incomplete hpcrypt API
+    fn test_p256_key_exchange() {
         let kex = create_key_exchange(KeyExchangeAlgorithm::Secp256r1).unwrap();
 
-        // Should return unsupported error
-        let result = kex.generate_keypair();
-        assert!(matches!(result, Err(Error::UnsupportedAlgorithm(_))));
+        // Alice generates keypair
+        let (alice_private, alice_public) = kex.generate_keypair().unwrap();
+
+        // Bob generates keypair
+        let (bob_private, bob_public) = kex.generate_keypair().unwrap();
+
+        // Compute shared secrets
+        let alice_shared = kex.exchange(&alice_private, bob_public.as_bytes()).unwrap();
+        let bob_shared = kex.exchange(&bob_private, alice_public.as_bytes()).unwrap();
+
+        // Should be equal
+        assert_eq!(alice_shared.as_bytes(), bob_shared.as_bytes());
+        assert_eq!(alice_shared.as_bytes().len(), 32);
+
+        // Verify public keys are in uncompressed SEC1 format (65 bytes: 0x04 || x || y)
+        assert_eq!(alice_public.as_bytes().len(), 65);
+        assert_eq!(alice_public.as_bytes()[0], 0x04);
+        assert_eq!(bob_public.as_bytes().len(), 65);
+        assert_eq!(bob_public.as_bytes()[0], 0x04);
     }
 }

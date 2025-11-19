@@ -1614,7 +1614,7 @@ mod tests {
         let mut handshake = ClientHandshake::new();
         let cipher_suites = vec![CipherSuite::Aes128GcmSha256, CipherSuite::Aes256GcmSha384];
         let client_hello = handshake
-            .client_hello(&provider, &cipher_suites, Some("example.com"), None)
+            .client_hello(&provider, &cipher_suites, Some("example.com"), None, None)
             .unwrap();
         assert_eq!(client_hello.legacy_version, ProtocolVersion::Tls12);
         assert_eq!(client_hello.cipher_suites, cipher_suites);
@@ -1628,7 +1628,7 @@ mod tests {
     fn test_client_hello_requires_cipher_suites() {
         let provider = HpcryptProvider::new();
         let mut handshake = ClientHandshake::new();
-        let result = handshake.client_hello(&provider, &[], None, None);
+        let result = handshake.client_hello(&provider, &[], None, None, None);
         assert!(result.is_err());
     }
 }

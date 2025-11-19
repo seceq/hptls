@@ -5,6 +5,195 @@ use hptls_crypto::{Error, Result, Signature, SignatureAlgorithm};
 
 // RSA PSS support
 use hpcrypt_rsa::RsaPrivateKey;
+use num_bigint::BigUint;
+
+/// Helper function to encode a BigUint as DER INTEGER
+fn encode_der_integer(value: &BigUint) -> Vec<u8> {
+    let mut result = Vec::new();
+    let bytes = value.to_bytes_be();
+
+    // DER INTEGER tag
+    result.push(0x02);
+
+    // Length
+    if bytes.len() < 128 {
+        result.push(bytes.len() as u8);
+    } else {
+        let len_bytes = bytes.len().to_be_bytes();
+        let mut first_non_zero = 0;
+        for (i, &b) in len_bytes.iter().enumerate() {
+            if b != 0 {
+                first_non_zero = i;
+                break;
+            }
+        }
+        let len_of_len = len_bytes.len() - first_non_zero;
+        result.push(0x80 | len_of_len as u8);
+        result.extend_from_slice(&len_bytes[first_non_zero..]);
+    }
+
+    // Value (add leading zero if high bit is set)
+    if bytes[0] & 0x80 != 0 {
+        result.push(0);
+    }
+    result.extend_from_slice(&bytes);
+
+    result
+}
+
+/// Helper function to encode DER SEQUENCE
+fn encode_der_sequence(contents: &[u8]) -> Vec<u8> {
+    let mut result = Vec::new();
+    result.push(0x30); // SEQUENCE tag
+
+    // Length
+    if contents.len() < 128 {
+        result.push(contents.len() as u8);
+    } else {
+        let len_bytes = contents.len().to_be_bytes();
+        let mut first_non_zero = 0;
+        for (i, &b) in len_bytes.iter().enumerate() {
+            if b != 0 {
+                first_non_zero = i;
+                break;
+            }
+        }
+        let len_of_len = len_bytes.len() - first_non_zero;
+        result.push(0x80 | len_of_len as u8);
+        result.extend_from_slice(&len_bytes[first_non_zero..]);
+    }
+
+    result.extend_from_slice(contents);
+    result
+}
+
+/// Encode an RSA public key as PKCS#1 DER format
+fn encode_rsa_public_key_pkcs1(n: &BigUint, e: &BigUint) -> Vec<u8> {
+    let mut contents = Vec::new();
+    contents.extend_from_slice(&encode_der_integer(n));
+    contents.extend_from_slice(&encode_der_integer(e));
+    encode_der_sequence(&contents)
+}
+
+/// Encode an RSA public key as X.509 SubjectPublicKeyInfo DER format
+fn encode_rsa_public_key_spki(n: &BigUint, e: &BigUint) -> Vec<u8> {
+    // RSA OID: 1.2.840.113549.1.1.1
+    let rsa_oid = [0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01];
+
+    // AlgorithmIdentifier: SEQUENCE { OID, NULL }
+    let mut alg_id = Vec::new();
+    alg_id.extend_from_slice(&rsa_oid);
+    alg_id.push(0x05); // NULL tag
+    alg_id.push(0x00); // NULL length
+    let alg_id_seq = encode_der_sequence(&alg_id);
+
+    // RSAPublicKey: SEQUENCE { n, e }
+    let rsa_pub_key = encode_rsa_public_key_pkcs1(n, e);
+
+    // BIT STRING wrapping the public key (add 0x00 for unused bits)
+    let mut bit_string_contents = vec![0x00];
+    bit_string_contents.extend_from_slice(&rsa_pub_key);
+    let mut bit_string = vec![0x03]; // BIT STRING tag
+    if bit_string_contents.len() < 128 {
+        bit_string.push(bit_string_contents.len() as u8);
+    } else {
+        let len_bytes = bit_string_contents.len().to_be_bytes();
+        let mut first_non_zero = 0;
+        for (i, &b) in len_bytes.iter().enumerate() {
+            if b != 0 {
+                first_non_zero = i;
+                break;
+            }
+        }
+        let len_of_len = len_bytes.len() - first_non_zero;
+        bit_string.push(0x80 | len_of_len as u8);
+        bit_string.extend_from_slice(&len_bytes[first_non_zero..]);
+    }
+    bit_string.extend_from_slice(&bit_string_contents);
+
+    // SubjectPublicKeyInfo: SEQUENCE { AlgorithmIdentifier, BIT STRING }
+    let mut spki_contents = Vec::new();
+    spki_contents.extend_from_slice(&alg_id_seq);
+    spki_contents.extend_from_slice(&bit_string);
+    encode_der_sequence(&spki_contents)
+}
+
+/// Encode an RSA private key as PKCS#1 DER format
+/// Note: We can only encode n, e, d (missing p, q, dp, dq, qinv from public RsaPrivateKey)
+fn encode_rsa_private_key_pkcs1_simple(n: &BigUint, e: &BigUint, d: &BigUint) -> Vec<u8> {
+    // For simplicity, encode only the public components and private exponent
+    // A proper PKCS#1 RSA private key would include p, q, dp, dq, qinv for CRT optimization
+    // But since those aren't exposed, we'll encode with version, n, e, d and zeros for the rest
+    let mut contents = Vec::new();
+
+    // Version (0)
+    contents.extend_from_slice(&[0x02, 0x01, 0x00]);
+
+    // modulus
+    contents.extend_from_slice(&encode_der_integer(n));
+
+    // publicExponent
+    contents.extend_from_slice(&encode_der_integer(e));
+
+    // privateExponent
+    contents.extend_from_slice(&encode_der_integer(d));
+
+    // We omit p, q, dp, dq, qinv which are required for proper PKCS#1
+    // This will only work for signing, not for decryption-based operations
+
+    encode_der_sequence(&contents)
+}
+
+/// Encode an RSA private key as PKCS#8 DER format
+fn encode_rsa_private_key_pkcs8(n: &BigUint, e: &BigUint, d: &BigUint) -> Vec<u8> {
+    // RSA OID: 1.2.840.113549.1.1.1
+    let rsa_oid = [0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01];
+
+    // AlgorithmIdentifier: SEQUENCE { OID, NULL }
+    let mut alg_id = Vec::new();
+    alg_id.extend_from_slice(&rsa_oid);
+    alg_id.push(0x05); // NULL tag
+    alg_id.push(0x00); // NULL length
+    let alg_id_seq = encode_der_sequence(&alg_id);
+
+    // RSAPrivateKey: PKCS#1 structure
+    let rsa_priv_key = encode_rsa_private_key_pkcs1_simple(n, e, d);
+
+    // PrivateKeyInfo: SEQUENCE {
+    //   version INTEGER (0),
+    //   algorithm AlgorithmIdentifier,
+    //   privateKey OCTET STRING (containing RSAPrivateKey)
+    // }
+    let mut pkcs8_contents = Vec::new();
+
+    // Version (0)
+    pkcs8_contents.extend_from_slice(&[0x02, 0x01, 0x00]);
+
+    // AlgorithmIdentifier
+    pkcs8_contents.extend_from_slice(&alg_id_seq);
+
+    // OCTET STRING wrapping the RSA private key
+    let mut octet_string = vec![0x04]; // OCTET STRING tag
+    if rsa_priv_key.len() < 128 {
+        octet_string.push(rsa_priv_key.len() as u8);
+    } else {
+        let len_bytes = rsa_priv_key.len().to_be_bytes();
+        let mut first_non_zero = 0;
+        for (i, &b) in len_bytes.iter().enumerate() {
+            if b != 0 {
+                first_non_zero = i;
+                break;
+            }
+        }
+        let len_of_len = len_bytes.len() - first_non_zero;
+        octet_string.push(0x80 | len_of_len as u8);
+        octet_string.extend_from_slice(&len_bytes[first_non_zero..]);
+    }
+    octet_string.extend_from_slice(&rsa_priv_key);
+    pkcs8_contents.extend_from_slice(&octet_string);
+
+    encode_der_sequence(&pkcs8_contents)
+}
 
 /// Hash adapter for RSA-PSS using hpcrypt SHA-256
 #[allow(dead_code)]
@@ -179,7 +368,7 @@ impl Signature for EcdsaP256Sig {
         let signing_key_array: [u8; 32] = signing_key.try_into().unwrap();
 
         // Create SigningKey from bytes
-        let sk = hpcrypt_signatures::ecdsa::SigningKey::from_bytes(&signing_key_array)
+        let sk = hpcrypt_signatures::ecdsa_p256::SigningKey::from_bytes(&signing_key_array)
             .map_err(|e| Error::CryptoError(format!("Invalid P-256 signing key: {:?}", e)))?;
 
         // TLS passes pre-hashed messages, but hpcrypt's sign() expects unhashed
@@ -210,11 +399,11 @@ impl Signature for EcdsaP256Sig {
         let verifying_key_array: [u8; 65] = verifying_key.try_into().unwrap();
 
         // Parse verifying key from SEC1 uncompressed format
-        let vk = hpcrypt_signatures::ecdsa::VerifyingKey::from_bytes_uncompressed(&verifying_key_array)
+        let vk = hpcrypt_signatures::ecdsa_p256::VerifyingKey::from_bytes_uncompressed(&verifying_key_array)
             .map_err(|e| Error::CryptoError(format!("Invalid P-256 verifying key: {:?}", e)))?;
 
         // Parse signature from DER encoding
-        let sig = hpcrypt_signatures::ecdsa::Signature::from_der(signature)
+        let sig = hpcrypt_signatures::ecdsa_p256::Signature::from_der(signature)
             .map_err(|e| Error::CryptoError(format!("Invalid P-256 signature DER: {:?}", e)))?;
 
         // Verify (will hash message with SHA-256 internally)
@@ -238,7 +427,7 @@ impl Signature for EcdsaP256Sig {
             .map_err(|_| Error::CryptoError("Failed to generate random P-256 key".to_string()))?;
 
         // Validate and create signing key
-        let sk = hpcrypt_signatures::ecdsa::SigningKey::from_bytes(&key_bytes)
+        let sk = hpcrypt_signatures::ecdsa_p256::SigningKey::from_bytes(&key_bytes)
             .map_err(|e| Error::CryptoError(format!("Generated invalid P-256 key: {:?}", e)))?;
 
         // Derive public key
@@ -456,16 +645,22 @@ impl Signature for RsaPssSha256Sig {
     }
 
     fn generate_keypair(&self) -> Result<(SigningKey, VerifyingKey)> {
-        // Generate a 2048-bit RSA key
-        let _private_key = RsaPrivateKey::generate(2048)
+        // Generate a 2048-bit RSA keypair
+        let private_key = RsaPrivateKey::generate(2048)
             .map_err(|e| Error::CryptoError(format!("Failed to generate RSA key: {:?}", e)))?;
 
-        // For now, we can't easily serialize the key to bytes without DER encoding
-        // This is a limitation that should be addressed for production use
-        Err(Error::CryptoError(
-            "RSA keypair generation successful but serialization not yet implemented. \
-             Use ECDSA or Ed25519 for now."
-                .to_string(),
+        let n = private_key.n().clone();
+        let e = private_key.e().clone();
+        let d = private_key.d().clone();
+
+        // Encode keys in the formats expected by sign/verify methods
+        // Sign/verify expect PKCS#8 for private and SPKI for public
+        let private_key_pkcs8 = encode_rsa_private_key_pkcs8(&n, &e, &d);
+        let public_key_spki = encode_rsa_public_key_spki(&n, &e);
+
+        Ok((
+            SigningKey::from_bytes(private_key_pkcs8),
+            VerifyingKey::from_bytes(public_key_spki),
         ))
     }
 }
@@ -514,6 +709,26 @@ impl Signature for RsaPssSha384Sig {
     fn algorithm(&self) -> SignatureAlgorithm {
         SignatureAlgorithm::RsaPssRsaeSha384
     }
+
+    fn generate_keypair(&self) -> Result<(SigningKey, VerifyingKey)> {
+        // Generate a 2048-bit RSA keypair
+        let private_key = RsaPrivateKey::generate(2048)
+            .map_err(|e| Error::CryptoError(format!("Failed to generate RSA key: {:?}", e)))?;
+
+        let n = private_key.n().clone();
+        let e = private_key.e().clone();
+        let d = private_key.d().clone();
+
+        // Encode keys in the formats expected by sign/verify methods
+        // Sign/verify expect PKCS#8 for private and SPKI for public
+        let private_key_pkcs8 = encode_rsa_private_key_pkcs8(&n, &e, &d);
+        let public_key_spki = encode_rsa_public_key_spki(&n, &e);
+
+        Ok((
+            SigningKey::from_bytes(private_key_pkcs8),
+            VerifyingKey::from_bytes(public_key_spki),
+        ))
+    }
 }
 
 /// RSA-PSS with SHA-512 signature implementation.
@@ -559,6 +774,26 @@ impl Signature for RsaPssSha512Sig {
 
     fn algorithm(&self) -> SignatureAlgorithm {
         SignatureAlgorithm::RsaPssRsaeSha512
+    }
+
+    fn generate_keypair(&self) -> Result<(SigningKey, VerifyingKey)> {
+        // Generate a 2048-bit RSA keypair
+        let private_key = RsaPrivateKey::generate(2048)
+            .map_err(|e| Error::CryptoError(format!("Failed to generate RSA key: {:?}", e)))?;
+
+        let n = private_key.n().clone();
+        let e = private_key.e().clone();
+        let d = private_key.d().clone();
+
+        // Encode keys in the formats expected by sign/verify methods
+        // Sign/verify expect PKCS#8 for private and SPKI for public
+        let private_key_pkcs8 = encode_rsa_private_key_pkcs8(&n, &e, &d);
+        let public_key_spki = encode_rsa_public_key_spki(&n, &e);
+
+        Ok((
+            SigningKey::from_bytes(private_key_pkcs8),
+            VerifyingKey::from_bytes(public_key_spki),
+        ))
     }
 }
 

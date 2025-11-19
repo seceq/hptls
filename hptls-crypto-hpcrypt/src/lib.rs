@@ -42,8 +42,6 @@
 //! //     .build()?;
 //! ```
 
-// NOTE: We allow unsafe code only for the RSA key bridge (rsa_bridge.rs)
-// TODO: Remove this once hpcrypt-rsa provides a public from_components constructor
 #![deny(unsafe_code)]
 #![warn(
     missing_docs,
@@ -187,7 +185,6 @@ mod tests {
     fn test_key_exchange_support() {
         let provider = HpcryptProvider::new();
         assert!(provider.supports_key_exchange(KeyExchangeAlgorithm::X25519));
-        // P-256 ECDH temporarily unavailable
         assert!(provider.supports_key_exchange(KeyExchangeAlgorithm::Secp256r1));
     }
 
@@ -195,7 +192,6 @@ mod tests {
     fn test_signature_support() {
         let provider = HpcryptProvider::new();
         assert!(provider.supports_signature(SignatureAlgorithm::Ed25519));
-        // ECDSA P-256 temporarily unavailable
         assert!(provider.supports_signature(SignatureAlgorithm::EcdsaSecp256r1Sha256));
     }
 }

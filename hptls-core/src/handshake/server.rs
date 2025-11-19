@@ -1995,7 +1995,7 @@ mod tests {
         // Create a ClientHello
         let mut client = crate::handshake::client::ClientHandshake::new();
         let client_hello = client
-            .client_hello(&provider, &cipher_suites, Some("example.com"), None)
+            .client_hello(&provider, &cipher_suites, Some("example.com"), None, None)
             .unwrap();
         // Process ClientHello
         let result = server.process_client_hello(&provider, &client_hello);
@@ -2012,10 +2012,10 @@ mod tests {
         let mut server = ServerHandshake::new(cipher_suites.clone());
         // Create and process ClientHello
         let mut client = crate::handshake::client::ClientHandshake::new();
-        let client_hello = client.client_hello(&provider, &cipher_suites, None, None).unwrap();
+        let client_hello = client.client_hello(&provider, &cipher_suites, None, None, None).unwrap();
         server.process_client_hello(&provider, &client_hello).unwrap();
         // Generate ServerHello
-        let server_hello = server.generate_server_hello(&provider).unwrap();
+        let server_hello = server.generate_server_hello(&provider, None).unwrap();
         assert_eq!(server_hello.legacy_version, ProtocolVersion::Tls12);
         assert_eq!(server_hello.cipher_suite, CipherSuite::Aes128GcmSha256);
         assert!(server_hello.extensions.contains_supported_versions());

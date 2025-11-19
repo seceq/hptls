@@ -18,8 +18,8 @@
 //! - FIPS mode toggle
 //! - State management (Uninitialized → Operational → Error)
 //! - Error state enforcement (no recovery)
-//! - KAT implementations (to be completed)
-//! - Zeroization hooks (to be added)
+//! - KAT implementations (in progress)
+//! - Zeroization hooks (in progress)
 //!
 //! ## Usage
 //!
