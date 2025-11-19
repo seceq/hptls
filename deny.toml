@@ -1,0 +1,51 @@
+# cargo-deny configuration for HPTLS
+
+[advisories]
+# The path where the advisory database is cloned/fetched into
+db-path = "~/.cargo/advisory-db"
+# The url(s) of the advisory databases to use
+db-urls = ["https://github.com/rustsec/advisory-db"]
+# Lint level for security vulnerabilities
+vulnerability = "deny"
+# Lint level for unmaintained crates
+unmaintained = "warn"
+# Lint level for crates with security notices
+notice = "warn"
+# Ignore advisories for specific IDs
+ignore = []
+
+[licenses]
+# List of allowed licenses
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-DFS-2016",
+]
+# Lint level for when a crate's license is not in the allow list
+unlicensed = "deny"
+# Lint level for when a crate has multiple licenses
+copyleft = "deny"
+# Allow 1 or more licenses on a per-crate basis
+exceptions = []
+
+[bans]
+# Lint level for when multiple versions of the same crate are detected
+multiple-versions = "warn"
+# Lint level for when a crate version requirement is `*`
+wildcards = "allow"
+# Skip certain crates from being checked
+skip = []
+# Skip certain crate versions from being checked
+skip-tree = []
+
+[sources]
+# Lint level for what to happen when a crate from a git repository is encountered
+unknown-git = "warn"
+# Lint level for what to happen when a crate from a registry is encountered
+unknown-registry = "warn"
+# List of URLs for allowed registries
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# List of URLs for allowed git repositories
+allow-git = []

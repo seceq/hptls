@@ -17,7 +17,7 @@ description = "High-Performance TLS library for Rust"
 hptls-core = { workspace = true }
 hptls-crypto = { workspace = true }
 hptls-crypto-hpcrypt = { path = "../hptls-crypto-hpcrypt" }
-hptls-sys = { workspace = true, optional = true }
+# hptls-sys = { workspace = true, optional = true }  # TODO: Implement hptls-sys for kTLS and io-uring support
 
 # Essential dependencies
 bytes = { workspace = true }
@@ -67,8 +67,9 @@ quic = ["hptls-core/quic"]
 
 # Performance features
 simd = ["hptls-core/simd"]
-kTLS = ["hptls-core/kTLS", "hptls-sys"]
-io-uring = ["hptls-core/io-uring", "hptls-sys"]
+# TODO: Re-enable these features once hptls-sys is implemented
+# kTLS = ["hptls-core/kTLS", "hptls-sys"]
+# io-uring = ["hptls-core/io-uring", "hptls-sys"]
 
 # Security features
 post-quantum = ["hptls-core/post-quantum"]

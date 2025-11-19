@@ -1,5 +1,8 @@
 # HPTLS - High-Performance TLS Library
 
+[![CI](https://github.com/seceq/hptls/workflows/CI/badge.svg)](https://github.com/seceq/hptls/actions/workflows/ci.yml)
+[![Security Audit](https://github.com/seceq/hptls/workflows/Security%20Audit/badge.svg)](https://github.com/seceq/hptls/actions/workflows/security.yml)
+[![codecov](https://codecov.io/gh/seceq/hptls/branch/master/graph/badge.svg)](https://codecov.io/gh/seceq/hptls)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE)
 [![Rust Version](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org)
 

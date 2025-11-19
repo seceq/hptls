@@ -1,0 +1,64 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+  pull_request:
+    branches: [ master, main ]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+  schedule:
+    # Run daily at 00:00 UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  audit:
+    name: Cargo Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Run cargo audit
+        run: cargo audit --deny warnings
+
+  deny:
+    name: Cargo Deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@cargo-deny
+
+      - name: Run cargo deny
+        run: cargo deny check
+
+  outdated:
+    name: Outdated Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-outdated
+        run: cargo install cargo-outdated
+
+      - name: Check for outdated dependencies
+        run: cargo outdated --exit-code 1 --depth 1
+        continue-on-error: true
