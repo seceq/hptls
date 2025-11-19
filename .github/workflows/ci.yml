@@ -32,8 +32,12 @@ jobs:
             rust: 1.75.0
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Setup hpcrypt dependency
+        run: |
+          cd ..
+          git clone https://github.com/seceq/hpcrypt.git hpcrypt-seceq
+          cd hptls
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
@@ -79,8 +83,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Setup hpcrypt dependency
+        run: |
+          cd ..
+          git clone https://github.com/seceq/hpcrypt.git hpcrypt-seceq
+          cd hptls
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -116,8 +124,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Setup hpcrypt dependency
+        run: |
+          cd ..
+          git clone https://github.com/seceq/hpcrypt.git hpcrypt-seceq
+          cd hptls
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -148,8 +160,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Setup hpcrypt dependency
+        run: |
+          cd ..
+          git clone https://github.com/seceq/hpcrypt.git hpcrypt-seceq
+          cd hptls
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -180,8 +196,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Setup hpcrypt dependency
+        run: |
+          cd ..
+          git clone https://github.com/seceq/hpcrypt.git hpcrypt-seceq
+          cd hptls
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -214,8 +234,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Setup hpcrypt dependency
+        run: |
+          cd ..
+          git clone https://github.com/seceq/hpcrypt.git hpcrypt-seceq
+          cd hptls
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
